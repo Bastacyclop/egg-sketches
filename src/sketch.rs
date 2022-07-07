@@ -80,3 +80,23 @@ impl<L: egg::FromOp> egg::FromOp for SketchNode<L> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+    use super::*;
+
+    #[test]
+    fn parse_and_print() {
+        let string = "(contains (f ?))";
+        let sketch = string.parse::<Sketch<SymbolLang>>().unwrap();
+
+        let mut sketch_ref = RecExpr::default();
+        let any = sketch_ref.add(SketchNode::Any);
+        let f = sketch_ref.add(SketchNode::Node(SymbolLang::new("f", vec![any])));
+        let _ = sketch_ref.add(SketchNode::Contains(f));
+
+        assert_eq!(sketch, sketch_ref);
+        assert_eq!(sketch.to_string(), string);
+    }
+}
