@@ -11,3 +11,4 @@ keywords = ["e-graph", "sketch"]
 
 [dependencies]
 egg = "0.9.0"
+thiserror = "1.0.31"

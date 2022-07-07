@@ -1,0 +1,82 @@
+
+use std::fmt::{self, Display, Formatter};
+use egg::{Id, Language, RecExpr};
+use thiserror::Error;
+
+/// A [`Sketch`] can be seen as a partial program, a program pattern, or a family of programs.
+pub type Sketch<L> = RecExpr<SketchNode<L>>;
+
+/// The language of [`Sketch`]es.
+///
+#[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub enum SketchNode<L> {
+    /// Any program of the underlying [`Language`]
+    Any,
+    /// Programs made from this [`Language`] node whose children satisfy the given sketches.
+    Node(L),
+    /// Programs that contain sub-programs satisfying the given sketch.
+    Contains(Id),
+    /// Programs that satisfy any of these sketches.
+    Or(Vec<Id>),
+}
+
+impl<L: Language> Language for SketchNode<L> {
+    fn matches(&self, _other: &Self) -> bool {
+        panic!("Should never call this")
+    }
+
+    fn children(&self) -> &[Id] {
+        match self {
+            Self::Any => &[],
+            Self::Node(n) => n.children(),
+            Self::Contains(s) => std::slice::from_ref(s),
+            Self::Or(ss) => ss.as_slice(),
+        }
+    }
+
+    fn children_mut(&mut self) -> &mut [Id] {
+        match self {
+            Self::Any => &mut [],
+            Self::Node(n) => n.children_mut(),
+            Self::Contains(s) => std::slice::from_mut(s),
+            Self::Or(ss) => ss.as_mut_slice(),
+        }
+    }
+}
+
+impl<L: Language + Display> Display for SketchNode<L> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Any => write!(f, "?"),
+            Self::Node(node) => Display::fmt(node, f),
+            Self::Contains(_) => write!(f, "contains"),
+            Self::Or(_) => write!(f, "or"),
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum SketchParseError<E> {
+    #[error("wrong number of children: {0:?}")]
+    BadChildren(egg::FromOpError),
+
+    #[error(transparent)]
+    BadOp(E),
+}
+
+impl<L: egg::FromOp> egg::FromOp for SketchNode<L> {
+    type Error = SketchParseError<L::Error>;
+
+    fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
+        match op {
+            "?" => Ok(Self::Any),
+            "contains" => if children.len() == 1 {
+                Ok(Self::Contains(children[0]))
+            } else {
+                Err(SketchParseError::BadChildren(egg::FromOpError::new(op, children)))
+            },
+            "or" => Ok(Self::Or(children)),
+            _ => L::from_op(op, children).map(Self::Node).map_err(SketchParseError::BadOp),
+        }
+    }
+}
