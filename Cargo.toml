@@ -1,0 +1,13 @@
+[package]
+name = "egg-sketches"
+version = "0.1.0"
+authors = ["Thomas Koehler <thomas.koehler@thok.eu>"]
+edition = "2021"
+description = "sketches for egg"
+repository = "https://github.com/Bastacyclop/egg-sketches"
+readme = "README.md"
+license = "MIT"
+keywords = ["e-graph", "sketch"]
+
+[dependencies]
+egg = "0.9.0"
