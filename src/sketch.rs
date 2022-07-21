@@ -69,7 +69,11 @@ impl<L: egg::FromOp> egg::FromOp for SketchNode<L> {
 
     fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
         match op {
-            "?" => Ok(Self::Any),
+            "?" => if children.len() == 0 {
+                Ok(Self::Any)
+            } else {
+                Err(SketchParseError::BadChildren(egg::FromOpError::new(op, children)))
+            },
             "contains" => if children.len() == 1 {
                 Ok(Self::Contains(children[0]))
             } else {
