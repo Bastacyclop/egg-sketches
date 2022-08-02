@@ -10,7 +10,8 @@ license = "MIT"
 keywords = ["e-graph", "sketch"]
 
 [dependencies]
-egg = "0.9.0"
+#egg = "0.9.0"
+egg = { git = "https://github.com/egraphs-good/egg.git", rev = "af69de311216cd9863637b9dc6e233cac3ca6b8f" }
 thiserror = "1.0.31"
 fxhash = "0.2.1"
 hashbrown = "0.12.1"

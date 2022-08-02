@@ -18,50 +18,50 @@ pub fn one_shot_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<L, 
 ) {
     assert!(egraph.clean);
 
-    let analysis_pending = IndexSet::<(L, Id)>::default();
+    let mut analysis_pending = IndexSet::<(L, Id)>::default();
 
     for eclass in egraph.classes() {
         for enode in &eclass.nodes {
-            if enode.children().forall(|c| data.contains(egraph.find(c))) {
-                analysis_pending.push((enode, eclass.id));
+            if enode.all(|c| data.contains_key(&egraph.find(c))) {
+                analysis_pending.insert((enode.clone(), eclass.id));
             }
         }
     }
 
-    resolve_pending_analysis(egraph, analysis, data, analysis_pending);
+    resolve_pending_analysis(egraph, analysis, data, &mut analysis_pending);
 
-    debug_assert!(egraph.classes().forall(|eclass| data.contains(eclass.id)));
+    debug_assert!(egraph.classes().all(|eclass| data.contains_key(&eclass.id)));
 }
 
 fn resolve_pending_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<L, A>>(
     egraph: &EGraph<L, A>,
-    analysis: B,
+    _analysis: B,
     data: &mut HashMap<Id, B::Data>,
     analysis_pending: &mut IndexSet<(L, Id)>
 ) {
     while let Some((node, id)) = analysis_pending.pop() {
-        let u_node = node.map_children(egraph.find_mut);
+        let u_node = node.clone().map_children(|id| egraph.find(id)); // find_mut?
 
-        if u_node.children().forall(data.contains) {
-            let cid = egraph.find_mut(id);
-            let eclass = egraph[cid];
-            let node_data = B::make(egraph, u_node, |id| &data[id]);
-            let new_data = match data.get(&cid) {
+        if u_node.all(|id| data.contains_key(&id)) {
+            let cid = egraph.find(id); // find_mut?
+            let eclass = &egraph[cid];
+            let node_data = B::make(egraph, &u_node, &|id| &data[&id]);
+            let new_data = match data.remove(&cid) {
                 None => {
-                    analysis_pending.extend(eclass.parents.iter());
+                    analysis_pending.extend(eclass.parents().map(|(n, id)| (n.clone(), id)));
                     node_data
                 }
-                Some(existing) => {
-                    let DidMerge(may_not_be_existing, _) = B::merge(existing, node_data);
+                Some(mut existing) => {
+                    let DidMerge(may_not_be_existing, _) = B::merge(&mut existing, node_data);
                     if may_not_be_existing {
-                        analysis_pending.extend(eclass.parents);
+                        analysis_pending.extend(eclass.parents().map(|(n, id)| (n.clone(), id)));
                     }
                     existing
                 }
             };
             data.insert(cid, new_data);
         } else {
-            analysis_pending.push((node, id));
+            analysis_pending.insert((node, id));
         }
     }
 }
