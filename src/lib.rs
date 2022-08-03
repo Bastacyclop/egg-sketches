@@ -2,6 +2,7 @@ pub(crate) use egg::*;
 
 mod sketch;
 mod analysis;
+mod extract;
 
 pub use {
     sketch::Sketch

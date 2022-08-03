@@ -1,5 +1,4 @@
-use crate::{HashSet, HashMap};
-use egg::{EGraph, Language, Analysis, Id, DidMerge, AstSize};
+use crate::*;
 use std::fmt::Debug;
 
 pub trait SemiLatticeAnalysis<L: Language, A: Analysis<L>> {
