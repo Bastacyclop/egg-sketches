@@ -99,7 +99,7 @@ impl<T: Eq + std::hash::Hash + Clone> HashSetQueuePop<T> {
 impl<L: Language, A: Analysis<L>> SemiLatticeAnalysis<L, A> for AstSize {
     type Data = usize;
 
-    fn make<'a>(egraph: &EGraph<L, A>, enode: &L,
+    fn make<'a>(_egraph: &EGraph<L, A>, enode: &L,
                 analysis_of: &'a impl Fn(Id) -> &'a Self::Data) -> Self::Data
             where Self::Data: 'a
     {

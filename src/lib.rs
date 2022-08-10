@@ -5,7 +5,9 @@ mod analysis;
 mod extract;
 
 pub use {
-    sketch::Sketch
+    sketch::Sketch,
+    extract::eclass_satisfies_sketch,
+    extract::satisfies_sketch,
 };
 
 pub(crate) type BuildHasher = fxhash::FxBuildHasher;
