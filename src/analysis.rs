@@ -2,17 +2,17 @@ use crate::*;
 use std::fmt::Debug;
 
 pub trait SemiLatticeAnalysis<L: Language, A: Analysis<L>> {
-    type Data: Debug;
+    type Data: Debug + 'static;
 
-    fn make<'a>(egraph: &EGraph<L, A>, enode: &L,
-                analysis_of: &'a impl Fn(Id) -> &'a Self::Data) -> Self::Data
-            where Self::Data: 'a;
-    fn merge(a: &mut Self::Data, b: Self::Data) -> DidMerge;
+    fn make<'b>(&mut self, egraph: &EGraph<L, A>, enode: &L,
+                analysis_of: &'b impl Fn(Id) -> &'b Self::Data) -> Self::Data
+            where Self::Data: 'b;
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge;
 }
 
 pub fn one_shot_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<L, A>>(
     egraph: &EGraph<L, A>,
-    analysis: B,
+    mut analysis: B,
     data: &mut HashMap<Id, B::Data>
 ) {
     assert!(egraph.clean);
@@ -29,14 +29,14 @@ pub fn one_shot_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<L, 
         }
     }
 
-    resolve_pending_analysis(egraph, analysis, data, &mut analysis_pending);
+    resolve_pending_analysis(egraph, &mut analysis, data, &mut analysis_pending);
 
     debug_assert!(egraph.classes().all(|eclass| data.contains_key(&eclass.id)));
 }
 
 fn resolve_pending_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<L, A>>(
     egraph: &EGraph<L, A>,
-    _analysis: B,
+    analysis: &mut B,
     data: &mut HashMap<Id, B::Data>,
     analysis_pending: &mut HashSetQueuePop<(L, Id)>
 ) {
@@ -46,14 +46,14 @@ fn resolve_pending_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<
         if u_node.all(|id| data.contains_key(&id)) {
             let cid = egraph.find(id); // find_mut?
             let eclass = &egraph[cid];
-            let node_data = B::make(egraph, &u_node, &|id| &data[&id]);
+            let node_data = analysis.make(egraph, &u_node, &|id| &data[&id]);
             let new_data = match data.remove(&cid) {
                 None => {
                     analysis_pending.extend(eclass.parents().map(|(n, id)| (n.clone(), id)));
                     node_data
                 }
                 Some(mut existing) => {
-                    let DidMerge(may_not_be_existing, _) = B::merge(&mut existing, node_data);
+                    let DidMerge(may_not_be_existing, _) = analysis.merge(&mut existing, node_data);
                     if may_not_be_existing {
                         analysis_pending.extend(eclass.parents().map(|(n, id)| (n.clone(), id)));
                     }
@@ -99,14 +99,14 @@ impl<T: Eq + std::hash::Hash + Clone> HashSetQueuePop<T> {
 impl<L: Language, A: Analysis<L>> SemiLatticeAnalysis<L, A> for AstSize {
     type Data = usize;
 
-    fn make<'a>(_egraph: &EGraph<L, A>, enode: &L,
+    fn make<'a>(&mut self, _egraph: &EGraph<L, A>, enode: &L,
                 analysis_of: &'a impl Fn(Id) -> &'a Self::Data) -> Self::Data
             where Self::Data: 'a
     {
         enode.fold(1usize, |size, id| size + analysis_of(id))
     }
 
-    fn merge(a: &mut Self::Data, b: Self::Data) -> DidMerge {
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
         if *a < b {
             DidMerge(false, true)
         } else if *a == b {
