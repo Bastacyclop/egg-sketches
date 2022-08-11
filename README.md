@@ -1,7 +1,16 @@
 # Sketches for [egg](https://github.com/egraphs-good/egg)
 
-This repository is bringing the sketch ideas from our [*Sketch-Guided Equality Saturation*](https://arxiv.org/abs/2111.13040) paper to the egg library and its community.
-Please cite our paper if you use this for your research!
+[![Main branch docs](https://img.shields.io/badge/docs-main-blue)](https://bastacyclop.github.io/egg-sketches/egg_sketches)
+
+`egg-sketches` is a library adding support for program sketches on top of the `egg` (**e**-**g**raphs **g**ood) library,
+an e-graph library optimized for equality saturation.
+*Sketches* are program patterns that are satisfied by a family of programs.
+They can also be seen as incomplete or partial programs as they can leave details unspecified.
+
+This library is born from our paper on [*Sketch-Guided Equality Saturation*](https://arxiv.org/abs/2111.13040),
+a semi-automatic technique that allows programmers to provide program sketches to guide rewriting.
+
+Please cite our paper if you use this repository for your research!
 
 <details class="bibtex">
     <summary>BibTeX</summary>

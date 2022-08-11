@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 /*!
 
 `egg-sketches` is a library adding support for program sketches on top of the `egg` (**e**-**g**raphs **g**ood) library,
