@@ -1,19 +1,25 @@
 use crate::*;
+use std::cmp::Ordering;
 use std::fmt::Debug;
 
 pub trait SemiLatticeAnalysis<L: Language, A: Analysis<L>> {
     type Data: Debug + 'static;
 
-    fn make<'b>(&mut self, egraph: &EGraph<L, A>, enode: &L,
-                analysis_of: &'b impl Fn(Id) -> &'b Self::Data) -> Self::Data
-            where Self::Data: 'b;
+    fn make<'b>(
+        &mut self,
+        egraph: &EGraph<L, A>,
+        enode: &L,
+        analysis_of: &'b impl Fn(Id) -> &'b Self::Data,
+    ) -> Self::Data
+    where
+        Self::Data: 'b;
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge;
 }
 
 pub fn one_shot_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<L, A>>(
     egraph: &EGraph<L, A>,
     mut analysis: B,
-    data: &mut HashMap<Id, B::Data>
+    data: &mut HashMap<Id, B::Data>,
 ) {
     assert!(egraph.clean);
 
@@ -38,7 +44,7 @@ fn resolve_pending_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<
     egraph: &EGraph<L, A>,
     analysis: &mut B,
     data: &mut HashMap<Id, B::Data>,
-    analysis_pending: &mut HashSetQueuePop<(L, Id)>
+    analysis_pending: &mut HashSetQueuePop<(L, Id)>,
 ) {
     while let Some((node, id)) = analysis_pending.pop() {
         let u_node = node.clone().map_children(|id| egraph.find(id)); // find_mut?
@@ -68,13 +74,16 @@ fn resolve_pending_analysis<L: Language, A: Analysis<L>, B: SemiLatticeAnalysis<
 }
 
 pub struct HashSetQueuePop<T> {
-  map: HashSet<T>,
-  queue: std::collections::VecDeque<T>,
+    map: HashSet<T>,
+    queue: std::collections::VecDeque<T>,
 }
 
 impl<T: Eq + std::hash::Hash + Clone> HashSetQueuePop<T> {
     pub fn new() -> Self {
-        HashSetQueuePop { map: HashSet::default(), queue: std::collections::VecDeque::new() }
+        HashSetQueuePop {
+            map: HashSet::default(),
+            queue: std::collections::VecDeque::new(),
+        }
     }
 
     pub fn insert(&mut self, t: T) {
@@ -83,7 +92,10 @@ impl<T: Eq + std::hash::Hash + Clone> HashSetQueuePop<T> {
         }
     }
 
-    pub fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = T> {
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
         for t in iter.into_iter() {
             self.insert(t);
         }
@@ -99,29 +111,34 @@ impl<T: Eq + std::hash::Hash + Clone> HashSetQueuePop<T> {
 impl<L: Language, A: Analysis<L>> SemiLatticeAnalysis<L, A> for AstSize {
     type Data = usize;
 
-    fn make<'a>(&mut self, _egraph: &EGraph<L, A>, enode: &L,
-                analysis_of: &'a impl Fn(Id) -> &'a Self::Data) -> Self::Data
-            where Self::Data: 'a
+    fn make<'a>(
+        &mut self,
+        _egraph: &EGraph<L, A>,
+        enode: &L,
+        analysis_of: &'a impl Fn(Id) -> &'a Self::Data,
+    ) -> Self::Data
+    where
+        Self::Data: 'a,
     {
         enode.fold(1usize, |size, id| size + analysis_of(id))
     }
 
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
-        if *a < b {
-            DidMerge(false, true)
-        } else if *a == b {
-            DidMerge(false, false)
-        } else {
-            *a = b;
-            DidMerge(true, false)
+        match (*a).cmp(&b) {
+            Ordering::Less => DidMerge(false, true),
+            Ordering::Equal => DidMerge(false, false),
+            Ordering::Greater => {
+                *a = b;
+                DidMerge(true, false)
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use super::*;
+    use crate::*;
 
     #[test]
     fn simple_analysis() {
@@ -129,7 +146,7 @@ mod tests {
         let a = egraph.add(SymbolLang::leaf("a"));
         let z = egraph.add(SymbolLang::leaf("0"));
         let apz = egraph.add(SymbolLang::new("+", vec![a, z]));
-        
+
         egraph.union(a, apz);
         egraph.rebuild();
 

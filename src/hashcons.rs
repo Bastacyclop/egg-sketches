@@ -30,7 +30,9 @@ impl<L: Language> ExprHashCons<L> {
         used.insert(id);
         for (i, node) in all.iter().enumerate().rev() {
             if used.contains(&Id::from(i)) {
-                node.for_each(|c| { used.insert(c); });
+                node.for_each(|c| {
+                    used.insert(c);
+                });
             }
         }
 
@@ -38,7 +40,7 @@ impl<L: Language> ExprHashCons<L> {
         let mut map = HashMap::<Id, Id>::default();
         for (i, node) in all.iter().enumerate() {
             if used.contains(&Id::from(i)) {
-                let fresh_node = node.clone().map_children(|c| map[&c].clone());
+                let fresh_node = node.clone().map_children(|c| map[&c]);
                 let fresh_id = fresh.add(fresh_node);
                 map.insert(Id::from(i), fresh_id);
             }

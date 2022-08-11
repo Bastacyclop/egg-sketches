@@ -1,14 +1,21 @@
 use crate::*;
-use sketch::SketchNode;
-use analysis::{SemiLatticeAnalysis, one_shot_analysis};
+use analysis::{one_shot_analysis, SemiLatticeAnalysis};
 use hashcons::ExprHashCons;
+use sketch::SketchNode;
 use std::cmp::Ordering;
 
-pub fn eclass_satisfies_sketch<L: Language, A: Analysis<L>>(s: &Sketch<L>, egraph: &EGraph<L, A>, id: Id) -> bool {
-    satisfies_sketch(&s, egraph).contains(&id)
+pub fn eclass_satisfies_sketch<L: Language, A: Analysis<L>>(
+    s: &Sketch<L>,
+    egraph: &EGraph<L, A>,
+    id: Id,
+) -> bool {
+    satisfies_sketch(s, egraph).contains(&id)
 }
 
-pub fn satisfies_sketch<L: Language, A: Analysis<L>>(s: &Sketch<L>, egraph: &EGraph<L, A>) -> HashSet<Id> {
+pub fn satisfies_sketch<L: Language, A: Analysis<L>>(
+    s: &Sketch<L>,
+    egraph: &EGraph<L, A>,
+) -> HashSet<Id> {
     assert!(egraph.clean);
     let mut memo = HashMap::<Id, HashSet<Id>>::default();
     let sketch_nodes = s.as_ref();
@@ -20,32 +27,43 @@ fn satisfies_sketch_rec<L: Language, A: Analysis<L>>(
     s_nodes: &[SketchNode<L>],
     s_index: Id,
     egraph: &EGraph<L, A>,
-    memo: &mut HashMap<Id, HashSet<Id>>
+    memo: &mut HashMap<Id, HashSet<Id>>,
 ) -> HashSet<Id> {
     match memo.get(&s_index) {
         Some(value) => return value.clone(),
-        None => ()
+        None => (),
     };
 
     let result = match &s_nodes[usize::from(s_index)] {
-        SketchNode::Any => {
-            egraph.classes().map(|c| c.id).collect()
-        }
+        SketchNode::Any => egraph.classes().map(|c| c.id).collect(),
         SketchNode::Node(node) => {
-            let children_matches = node.children().iter().map(|sid| {
-                satisfies_sketch_rec(s_nodes, *sid, egraph, memo)
-            }).collect::<Vec<_>>();
+            let children_matches = node
+                .children()
+                .iter()
+                .map(|sid| satisfies_sketch_rec(s_nodes, *sid, egraph, memo))
+                .collect::<Vec<_>>();
 
-            if let Some(potential_ids) = egraph.classes_matching_op(&node) {
-                potential_ids.iter().cloned().filter(|&id| {
-                    let eclass = &egraph[id];
+            if let Some(potential_ids) = egraph.classes_matching_op(node) {
+                potential_ids
+                    .iter()
+                    .cloned()
+                    .filter(|&id| {
+                        let eclass = &egraph[id];
 
-                    egg::for_each_matching_node(eclass, &node, |matched| {
-                        let children_match = children_matches.iter().zip(matched.children())
-                            .all(|(matches, id)| matches.contains(id));
-                        if children_match { Err(()) } else { Ok(()) }
-                    }).is_err()
-                }).collect()
+                        egg::for_each_matching_node(eclass, node, |matched| {
+                            let children_match = children_matches
+                                .iter()
+                                .zip(matched.children())
+                                .all(|(matches, id)| matches.contains(id));
+                            if children_match {
+                                Err(())
+                            } else {
+                                Ok(())
+                            }
+                        })
+                        .is_err()
+                    })
+                    .collect()
             } else {
                 HashSet::default()
             }
@@ -53,20 +71,23 @@ fn satisfies_sketch_rec<L: Language, A: Analysis<L>>(
         SketchNode::Contains(sid) => {
             let contained_matched = satisfies_sketch_rec(s_nodes, *sid, egraph, memo);
 
-            let mut data = egraph.classes().map(|eclass| {
-                (eclass.id, contained_matched.contains(&eclass.id))
-            }).collect::<HashMap<_, bool>>();
+            let mut data = egraph
+                .classes()
+                .map(|eclass| (eclass.id, contained_matched.contains(&eclass.id)))
+                .collect::<HashMap<_, bool>>();
 
             one_shot_analysis(egraph, SatisfiesContainsAnalysis, &mut data);
 
-            data.iter().flat_map(|(&id, &is_match)| {
-                if is_match { Some(id) } else { None }
-            }).collect()
+            data.iter()
+                .flat_map(|(&id, &is_match)| if is_match { Some(id) } else { None })
+                .collect()
         }
         SketchNode::Or(sids) => {
-            let matches = sids.iter().map(|sid|
-                satisfies_sketch_rec(s_nodes, *sid, egraph, memo));
-            matches.reduce(|a, b| a.union(&b).cloned().collect())
+            let matches = sids
+                .iter()
+                .map(|sid| satisfies_sketch_rec(s_nodes, *sid, egraph, memo));
+            matches
+                .reduce(|a, b| a.union(&b).cloned().collect())
                 .expect("empty or sketch")
         }
     };
@@ -79,9 +100,14 @@ pub struct SatisfiesContainsAnalysis;
 impl<L: Language, A: Analysis<L>> SemiLatticeAnalysis<L, A> for SatisfiesContainsAnalysis {
     type Data = bool;
 
-    fn make<'a>(&mut self, _egraph: &EGraph<L, A>, enode: &L,
-                analysis_of: &'a impl Fn(Id) -> &'a Self::Data) -> Self::Data
-            where Self::Data: 'a
+    fn make<'a>(
+        &mut self,
+        _egraph: &EGraph<L, A>,
+        enode: &L,
+        analysis_of: &'a impl Fn(Id) -> &'a Self::Data,
+    ) -> Self::Data
+    where
+        Self::Data: 'a,
     {
         enode.any(|c| *analysis_of(c))
     }
@@ -90,7 +116,7 @@ impl<L: Language, A: Analysis<L>> SemiLatticeAnalysis<L, A> for SatisfiesContain
         let r = *a || b;
         let dm = DidMerge(r != *a, r != b);
         *a = r;
-        dm  
+        dm
     }
 }
 
@@ -98,14 +124,18 @@ pub fn eclass_extract_sketch<L, A, CF>(
     s: &Sketch<L>,
     cost_f: CF,
     egraph: &EGraph<L, A>,
-    id: Id) -> Option<(CF::Cost, RecExpr<L>)>
-    where L: Language, A: Analysis<L>, CF: CostFunction<L>,
-          CF::Cost: 'static + Ord
+    id: Id,
+) -> Option<(CF::Cost, RecExpr<L>)>
+where
+    L: Language,
+    A: Analysis<L>,
+    CF: CostFunction<L>,
+    CF::Cost: 'static + Ord,
 {
-    let (exprs, eclass_to_best) = extract_sketch(&s, cost_f, egraph);
-    eclass_to_best.get(&id).map(|(best_cost, best_id)| {
-        (best_cost.clone(), exprs.extract(*best_id))
-    })
+    let (exprs, eclass_to_best) = extract_sketch(s, cost_f, egraph);
+    eclass_to_best
+        .get(&id)
+        .map(|(best_cost, best_id)| (best_cost.clone(), exprs.extract(*best_id)))
 }
 
 fn extract_sketch<L, A, CF>(
@@ -113,8 +143,11 @@ fn extract_sketch<L, A, CF>(
     mut cost_f: CF,
     egraph: &EGraph<L, A>,
 ) -> (ExprHashCons<L>, HashMap<Id, (CF::Cost, Id)>)
-    where L: Language, A: Analysis<L>, CF: CostFunction<L>,
-          CF::Cost: 'static + Ord
+where
+    L: Language,
+    A: Analysis<L>,
+    CF: CostFunction<L>,
+    CF::Cost: 'static + Ord,
 {
     assert!(egraph.clean);
     let mut memo = HashMap::<Id, HashMap<Id, (CF::Cost, Id)>>::default();
@@ -123,10 +156,21 @@ fn extract_sketch<L, A, CF>(
     let mut exprs = ExprHashCons::new();
 
     let mut extracted = HashMap::default();
-    let analysis = ExtractAnalysis { exprs: &mut exprs, cost_f: &mut cost_f };
+    let analysis = ExtractAnalysis {
+        exprs: &mut exprs,
+        cost_f: &mut cost_f,
+    };
     one_shot_analysis(&egraph, analysis, &mut extracted);
 
-    let res = extract_sketch_rec(sketch_nodes, sketch_root, &mut cost_f, egraph, &mut exprs, &extracted, &mut memo);
+    let res = extract_sketch_rec(
+        sketch_nodes,
+        sketch_root,
+        &mut cost_f,
+        egraph,
+        &mut exprs,
+        &extracted,
+        &mut memo,
+    );
     (exprs, res)
 }
 
@@ -137,92 +181,116 @@ fn extract_sketch_rec<L, A, CF>(
     egraph: &EGraph<L, A>,
     exprs: &mut ExprHashCons<L>,
     extracted: &HashMap<Id, (CF::Cost, Id)>,
-    memo: &mut HashMap<Id, HashMap<Id, (CF::Cost, Id)>>
+    memo: &mut HashMap<Id, HashMap<Id, (CF::Cost, Id)>>,
 ) -> HashMap<Id, (CF::Cost, Id)>
-    where L: Language, A: Analysis<L>, CF: CostFunction<L>,
-          CF::Cost: 'static + Ord
+where
+    L: Language,
+    A: Analysis<L>,
+    CF: CostFunction<L>,
+    CF::Cost: 'static + Ord,
 {
     match memo.get(&s_index) {
         Some(value) => return value.clone(),
-        None => ()
+        None => (),
     };
 
     let result = match &s_nodes[usize::from(s_index)] {
-        SketchNode::Any => {
-            extracted.clone()
-        }
+        SketchNode::Any => extracted.clone(),
         SketchNode::Node(node) => {
-            let children_matches = node.children().iter().map(|sid| {
-                extract_sketch_rec(s_nodes, *sid, cost_f, egraph, exprs, extracted, memo)
-            }).collect::<Vec<_>>();
+            let children_matches = node
+                .children()
+                .iter()
+                .map(|sid| {
+                    extract_sketch_rec(s_nodes, *sid, cost_f, egraph, exprs, extracted, memo)
+                })
+                .collect::<Vec<_>>();
 
-            if let Some(potential_ids) = egraph.classes_matching_op(&node) {
-                potential_ids.iter().cloned().flat_map(|id| {
-                    let eclass = &egraph[id];
-                    let mut candidates = Vec::new();
+            if let Some(potential_ids) = egraph.classes_matching_op(node) {
+                potential_ids
+                    .iter()
+                    .cloned()
+                    .flat_map(|id| {
+                        let eclass = &egraph[id];
+                        let mut candidates = Vec::new();
 
-                    let _ = egg::for_each_matching_node(eclass, &node, |matched| {
-                        let mut matches = Vec::new();
-                        for (cm, id) in children_matches.iter().zip(matched.children()) {
-                            if let Some(m) = cm.get(id) {
-                                matches.push(m);
-                            } else {
-                                break;
+                        let _ = egg::for_each_matching_node(eclass, node, |matched| {
+                            let mut matches = Vec::new();
+                            for (cm, id) in children_matches.iter().zip(matched.children()) {
+                                if let Some(m) = cm.get(id) {
+                                    matches.push(m);
+                                } else {
+                                    break;
+                                }
                             }
-                        }
 
-                        if matches.len() == matched.len() {
-                            let to_match: HashMap<_, _> = matched.children().iter().zip(matches.iter()).collect();
-                            candidates.push((
-                                cost_f.cost(matched, |c| to_match[&c].0.clone()),
-                                exprs.add(matched.clone().map_children(|c| to_match[&c].1))
-                            ));
-                        }
+                            if matches.len() == matched.len() {
+                                let to_match: HashMap<_, _> =
+                                    matched.children().iter().zip(matches.iter()).collect();
+                                candidates.push((
+                                    cost_f.cost(matched, |c| to_match[&c].0.clone()),
+                                    exprs.add(matched.clone().map_children(|c| to_match[&c].1)),
+                                ));
+                            }
 
-                        Ok(())
-                    });
-                    
-                    candidates.into_iter().min_by(|x, y| x.0.cmp(&y.0))
-                        .map(|best| (id, best))
-                }).collect()
+                            Ok(())
+                        });
+
+                        candidates
+                            .into_iter()
+                            .min_by(|x, y| x.0.cmp(&y.0))
+                            .map(|best| (id, best))
+                    })
+                    .collect()
             } else {
                 HashMap::default()
             }
         }
         SketchNode::Contains(sid) => {
-            let contained_matches = extract_sketch_rec(s_nodes, *sid, cost_f, egraph, exprs, extracted, memo);
+            let contained_matches =
+                extract_sketch_rec(s_nodes, *sid, cost_f, egraph, exprs, extracted, memo);
 
-            let mut data = egraph.classes().map(|eclass| {
-                (eclass.id, contained_matches.get(&eclass.id).cloned())
-            }).collect::<HashMap<_, _>>();
+            let mut data = egraph
+                .classes()
+                .map(|eclass| (eclass.id, contained_matches.get(&eclass.id).cloned()))
+                .collect::<HashMap<_, _>>();
 
             let analysis = ExtractContainsAnalysis {
-                exprs, cost_f, extracted
+                exprs,
+                cost_f,
+                extracted,
             };
 
             one_shot_analysis(egraph, analysis, &mut data);
 
-            data.into_iter().flat_map(|(id, maybe_best)| {
-                maybe_best.map(|b| (id, b))
-            }).collect()
+            data.into_iter()
+                .flat_map(|(id, maybe_best)| maybe_best.map(|b| (id, b)))
+                .collect()
         }
         SketchNode::Or(sids) => {
-            let matches = sids.iter().map(|sid|
-                extract_sketch_rec(s_nodes, *sid, cost_f, egraph, exprs, extracted, memo))
+            let matches = sids
+                .iter()
+                .map(|sid| {
+                    extract_sketch_rec(s_nodes, *sid, cost_f, egraph, exprs, extracted, memo)
+                })
                 .collect::<Vec<_>>();
             let mut matching_ids = HashSet::default();
             for m in &matches {
                 matching_ids.extend(m.keys());
             }
 
-            matching_ids.iter().flat_map(|id| {
-                let mut candidates = Vec::new();
-                for ms in &matches {
-                    candidates.extend(ms.get(id));
-                }
-                candidates.into_iter().min_by(|x, y| x.0.cmp(&y.0))
-                    .map(|best| (*id, best.clone()))
-            }).collect()
+            matching_ids
+                .iter()
+                .flat_map(|id| {
+                    let mut candidates = Vec::new();
+                    for ms in &matches {
+                        candidates.extend(ms.get(id));
+                    }
+                    candidates
+                        .into_iter()
+                        .min_by(|x, y| x.0.cmp(&y.0))
+                        .map(|best| (*id, best.clone()))
+                })
+                .collect()
         }
     };
 
@@ -231,7 +299,9 @@ fn extract_sketch_rec<L, A, CF>(
 }
 
 pub struct ExtractContainsAnalysis<'a, L, CF>
-    where L: Language, CF: CostFunction<L>
+where
+    L: Language,
+    CF: CostFunction<L>,
 {
     exprs: &'a mut ExprHashCons<L>,
     cost_f: &'a mut CF,
@@ -239,20 +309,36 @@ pub struct ExtractContainsAnalysis<'a, L, CF>
 }
 
 impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractContainsAnalysis<'a, L, CF>
-    where L: Language, A: Analysis<L>, CF: CostFunction<L>,
-          CF::Cost: 'static + Ord
+where
+    L: Language,
+    A: Analysis<L>,
+    CF: CostFunction<L>,
+    CF::Cost: 'static + Ord,
 {
     type Data = Option<(CF::Cost, Id)>;
 
-    fn make<'b>(&mut self, egraph: &EGraph<L, A>, enode: &L,
-                analysis_of: &'b impl Fn(Id) -> &'b Self::Data) -> Self::Data
-            where Self::Data: 'b
+    fn make<'b>(
+        &mut self,
+        egraph: &EGraph<L, A>,
+        enode: &L,
+        analysis_of: &'b impl Fn(Id) -> &'b Self::Data,
+    ) -> Self::Data
+    where
+        Self::Data: 'b,
     {
-        let children_matching: Vec<_> = enode.children().iter().flat_map(|&c| {
-            let data = (*analysis_of)(c);
-            data.as_ref().map(|x| (c, x.clone()))
-        }).collect();
-        let children_any: Vec<_> = enode.children().iter().map(|&c| (c, self.extracted[&egraph.find(c)].clone())).collect();
+        let children_matching: Vec<_> = enode
+            .children()
+            .iter()
+            .flat_map(|&c| {
+                let data = (*analysis_of)(c);
+                data.as_ref().map(|x| (c, x.clone()))
+            })
+            .collect();
+        let children_any: Vec<_> = enode
+            .children()
+            .iter()
+            .map(|&c| (c, self.extracted[&egraph.find(c)].clone()))
+            .collect();
 
         let mut candidates = Vec::new();
 
@@ -270,12 +356,13 @@ impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractContainsAnalysis<'a, L, 
 
             candidates.push((
                 self.cost_f.cost(enode, |c| to_selected[&c].0.clone()),
-                self.exprs.add(enode.clone().map_children(|c| to_selected[&c].1))
+                self.exprs
+                    .add(enode.clone().map_children(|c| to_selected[&c].1)),
             ));
         }
 
         candidates.into_iter().min_by(|x, y| x.0.cmp(&y.0))
-            //.map(|best| (id, best))
+        //.map(|best| (id, best))
     }
 
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
@@ -283,7 +370,7 @@ impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractContainsAnalysis<'a, L, 
             (None, None) => Ordering::Equal,
             (Some(_), None) => Ordering::Less,
             (None, Some(_)) => Ordering::Greater,
-            (&Some((ref ca, _)), &Some((ref cb, _))) => ca.cmp(cb)
+            (&Some((ref ca, _)), &Some((ref cb, _))) => ca.cmp(cb),
         };
         match ord {
             Ordering::Equal => DidMerge(false, false),
@@ -302,17 +389,29 @@ pub struct ExtractAnalysis<'a, L, CF> {
 }
 
 impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractAnalysis<'a, L, CF>
-    where L: Language, A: Analysis<L>, CF: CostFunction<L>, CF::Cost: 'static
+where
+    L: Language,
+    A: Analysis<L>,
+    CF: CostFunction<L>,
+    CF::Cost: 'static,
 {
     type Data = (CF::Cost, Id);
 
-    fn make<'b>(&mut self, _egraph: &EGraph<L, A>, enode: &L,
-                analysis_of: &'b impl Fn(Id) -> &'b Self::Data) -> Self::Data
-            where Self::Data: 'b
+    fn make<'b>(
+        &mut self,
+        _egraph: &EGraph<L, A>,
+        enode: &L,
+        analysis_of: &'b impl Fn(Id) -> &'b Self::Data,
+    ) -> Self::Data
+    where
+        Self::Data: 'b,
     {
         let expr_node = enode.clone().map_children(|c| (*analysis_of)(c).1);
         let expr = self.exprs.add(expr_node);
-        (self.cost_f.cost(enode, |c| (*analysis_of)(c).0.clone()), expr)
+        (
+            self.cost_f.cost(enode, |c| (*analysis_of)(c).0.clone()),
+            expr,
+        )
     }
 
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
@@ -329,26 +428,22 @@ impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractAnalysis<'a, L, CF>
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use super::*;
+    use crate::*;
 
     #[test]
     fn simple_extract() {
-        let sketch = "(contains (f ?))"
-            .parse::<Sketch<SymbolLang>>().unwrap();
-        
-        let a_expr = "(g (f (v x)))"
-            .parse::<RecExpr<SymbolLang>>().unwrap();
-        let b_expr = "(h (g (f (u x))))"
-            .parse::<RecExpr<SymbolLang>>().unwrap();
-        let c_expr = "(h (g x))"
-            .parse::<RecExpr<SymbolLang>>().unwrap();
+        let sketch = "(contains (f ?))".parse::<Sketch<SymbolLang>>().unwrap();
+
+        let a_expr = "(g (f (v x)))".parse::<RecExpr<SymbolLang>>().unwrap();
+        let b_expr = "(h (g (f (u x))))".parse::<RecExpr<SymbolLang>>().unwrap();
+        let c_expr = "(h (g x))".parse::<RecExpr<SymbolLang>>().unwrap();
 
         let mut egraph = EGraph::<SymbolLang, ()>::default();
         let a = egraph.add_expr(&a_expr);
         let b = egraph.add_expr(&b_expr);
         let c = egraph.add_expr(&c_expr);
-        
+
         egraph.rebuild();
 
         let sat1 = satisfies_sketch(&sketch, &egraph);

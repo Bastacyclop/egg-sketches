@@ -1,6 +1,5 @@
-
-use std::fmt::{self, Display, Formatter};
 use egg::{Id, Language, RecExpr};
+use std::fmt::{self, Display, Formatter};
 use thiserror::Error;
 
 /// A [`Sketch`] can be seen as a partial program, a program pattern, or a family of programs.
@@ -69,26 +68,36 @@ impl<L: egg::FromOp> egg::FromOp for SketchNode<L> {
 
     fn from_op(op: &str, children: Vec<Id>) -> Result<Self, Self::Error> {
         match op {
-            "?" => if children.len() == 0 {
-                Ok(Self::Any)
-            } else {
-                Err(SketchParseError::BadChildren(egg::FromOpError::new(op, children)))
-            },
-            "contains" => if children.len() == 1 {
-                Ok(Self::Contains(children[0]))
-            } else {
-                Err(SketchParseError::BadChildren(egg::FromOpError::new(op, children)))
-            },
+            "?" => {
+                if children.len() == 0 {
+                    Ok(Self::Any)
+                } else {
+                    Err(SketchParseError::BadChildren(egg::FromOpError::new(
+                        op, children,
+                    )))
+                }
+            }
+            "contains" => {
+                if children.len() == 1 {
+                    Ok(Self::Contains(children[0]))
+                } else {
+                    Err(SketchParseError::BadChildren(egg::FromOpError::new(
+                        op, children,
+                    )))
+                }
+            }
             "or" => Ok(Self::Or(children)),
-            _ => L::from_op(op, children).map(Self::Node).map_err(SketchParseError::BadOp),
+            _ => L::from_op(op, children)
+                .map(Self::Node)
+                .map_err(SketchParseError::BadOp),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use super::*;
+    use crate::*;
 
     #[test]
     fn parse_and_print() {

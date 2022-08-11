@@ -1,15 +1,16 @@
 pub(crate) use egg::*;
 
-mod sketch;
 mod analysis;
 mod extract;
 mod hashcons;
+mod sketch;
 
 pub use {
-    sketch::Sketch,
-    extract::eclass_satisfies_sketch, extract::satisfies_sketch,
     extract::eclass_extract_sketch,
     // extract::extract_sketch,
+    extract::eclass_satisfies_sketch,
+    extract::satisfies_sketch,
+    sketch::Sketch,
 };
 
 pub(crate) type BuildHasher = fxhash::FxBuildHasher;
