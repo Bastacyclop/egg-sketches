@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["eclass_extract_sketch",""],["eclass_satisfies_sketch",""],["satisfies_sketch",""]],"type":[["Sketch","A [`Sketch`] can be seen as a partial program, a program pattern, or a family of programs."]]});
