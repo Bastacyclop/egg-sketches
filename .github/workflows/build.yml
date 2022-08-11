@@ -1,0 +1,21 @@
+name: Build and Test
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache cargo bin
+      uses: actions/cache@v2
+      with:
+        path: ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-bin
+    - name: Test
+      run: make test
+  nits:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Nits
+      run: make nits
