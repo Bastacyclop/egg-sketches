@@ -25,7 +25,33 @@
 <span id="20">20</span>
 <span id="21">21</span>
 <span id="22">22</span>
-</pre><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">egg</span>::<span class="kw-2">*</span>;
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+</pre><pre class="rust"><code><span class="doccomment">/*!
+
+`egg-sketches` is a library adding support for program sketches on top of the `egg` (**e**-**g**raphs **g**ood) library,
+an e-graph library optimized for equality saturation.
+
+*Sketches* are program patterns that are satisfied by a family of programs.
+They can also be seen as incomplete or partial programs as they can leave details unspecified.
+
+This library is born from our paper on [*Sketch-Guided Equality Saturation*](https://arxiv.org/abs/2111.13040),
+a semi-automatic technique that allows programmers to provide program sketches to guide rewriting.
+
+*/</span>
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">egg</span>::<span class="kw-2">*</span>;
 
 <span class="kw">mod</span> <span class="ident">analysis</span>;
 <span class="kw">mod</span> <span class="ident">extract</span>;
@@ -37,7 +63,7 @@
     <span class="comment">// extract::extract_sketch,</span>
     <span class="ident">extract::eclass_satisfies_sketch</span>,
     <span class="ident">extract::satisfies_sketch</span>,
-    <span class="ident">sketch::Sketch</span>,
+    <span class="ident">sketch</span>::{<span class="ident">Sketch</span>, <span class="ident">SketchNode</span>},
 };
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type</span> <span class="ident">BuildHasher</span> <span class="op">=</span> <span class="ident">fxhash::FxBuildHasher</span>;

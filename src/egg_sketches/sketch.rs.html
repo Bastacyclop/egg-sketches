@@ -118,24 +118,44 @@
 <span id="113">113</span>
 <span id="114">114</span>
 <span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">egg</span>::{<span class="ident">Id</span>, <span class="ident">Language</span>, <span class="ident">RecExpr</span>};
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
 
-<span class="doccomment">/// A [`Sketch`] can be seen as a partial program, a program pattern, or a family of programs.</span>
+<span class="doccomment">/// A [`Sketch`] is a program pattern that is satisfied by a family of programs.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// It can also be seen as an incomplete or partial program as it can leave details unspecified.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Sketch</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RecExpr</span><span class="op">&lt;</span><span class="ident">SketchNode</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// The language of [`Sketch`]es.</span>
 <span class="doccomment">///</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SketchNode</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Any program of the underlying [`Language`]</span>
+    <span class="doccomment">/// Any program of the underlying [`Language`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Corresponds to the `?` syntax.</span>
     <span class="ident">Any</span>,
     <span class="doccomment">/// Programs made from this [`Language`] node whose children satisfy the given sketches.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Corresponds to the `(language_node s1 .. sn)` syntax.</span>
     <span class="ident">Node</span>(<span class="ident">L</span>),
     <span class="doccomment">/// Programs that contain sub-programs satisfying the given sketch.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Corresponds to the `(contains s)` syntax.</span>
     <span class="ident">Contains</span>(<span class="ident">Id</span>),
     <span class="doccomment">/// Programs that satisfy any of these sketches.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Corresponds to the `(or s1 .. sn)` syntax.</span>
     <span class="ident">Or</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Id</span><span class="op">&gt;</span>),
 }
 
