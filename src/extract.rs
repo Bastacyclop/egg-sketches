@@ -4,6 +4,7 @@ use hashcons::ExprHashCons;
 use sketch::SketchNode;
 use std::cmp::Ordering;
 
+/// Is the `id` e-class of `egraph` representing at least one program satisfying `s`?
 pub fn eclass_satisfies_sketch<L: Language, A: Analysis<L>>(
     s: &Sketch<L>,
     egraph: &EGraph<L, A>,
@@ -12,6 +13,7 @@ pub fn eclass_satisfies_sketch<L: Language, A: Analysis<L>>(
     satisfies_sketch(s, egraph).contains(&id)
 }
 
+/// Returns the set of e-classes of `egraph` that represent at least one program satisfying `s`.
 pub fn satisfies_sketch<L: Language, A: Analysis<L>>(
     s: &Sketch<L>,
     egraph: &EGraph<L, A>,
@@ -120,6 +122,7 @@ impl<L: Language, A: Analysis<L>> SemiLatticeAnalysis<L, A> for SatisfiesContain
     }
 }
 
+/// Returns the best program satisfying `s` according to `cost_f` that is represented in the `id` e-class of `egraph`, if it exists.
 pub fn eclass_extract_sketch<L, A, CF>(
     s: &Sketch<L>,
     cost_f: CF,

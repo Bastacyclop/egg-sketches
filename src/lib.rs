@@ -1,3 +1,16 @@
+/*!
+
+`egg-sketches` is a library adding support for program sketches on top of the `egg` (**e**-**g**raphs **g**ood) library,
+an e-graph library optimized for equality saturation.
+
+*Sketches* are program patterns that are satisfied by a family of programs.
+They can also be seen as incomplete or partial programs as they can leave details unspecified.
+
+This library is born from our paper on [*Sketch-Guided Equality Saturation*](https://arxiv.org/abs/2111.13040),
+a semi-automatic technique that allows programmers to provide program sketches to guide rewriting.
+
+*/
+
 pub(crate) use egg::*;
 
 mod analysis;
@@ -10,7 +23,7 @@ pub use {
     // extract::extract_sketch,
     extract::eclass_satisfies_sketch,
     extract::satisfies_sketch,
-    sketch::Sketch,
+    sketch::{Sketch, SketchNode},
 };
 
 pub(crate) type BuildHasher = fxhash::FxBuildHasher;

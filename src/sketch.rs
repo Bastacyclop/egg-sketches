@@ -2,20 +2,30 @@ use egg::{Id, Language, RecExpr};
 use std::fmt::{self, Display, Formatter};
 use thiserror::Error;
 
-/// A [`Sketch`] can be seen as a partial program, a program pattern, or a family of programs.
+/// A [`Sketch`] is a program pattern that is satisfied by a family of programs.
+///
+/// It can also be seen as an incomplete or partial program as it can leave details unspecified.
 pub type Sketch<L> = RecExpr<SketchNode<L>>;
 
 /// The language of [`Sketch`]es.
 ///
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum SketchNode<L> {
-    /// Any program of the underlying [`Language`]
+    /// Any program of the underlying [`Language`].
+    ///
+    /// Corresponds to the `?` syntax.
     Any,
     /// Programs made from this [`Language`] node whose children satisfy the given sketches.
+    ///
+    /// Corresponds to the `(language_node s1 .. sn)` syntax.
     Node(L),
     /// Programs that contain sub-programs satisfying the given sketch.
+    ///
+    /// Corresponds to the `(contains s)` syntax.
     Contains(Id),
     /// Programs that satisfy any of these sketches.
+    ///
+    /// Corresponds to the `(or s1 .. sn)` syntax.
     Or(Vec<Id>),
 }
 
