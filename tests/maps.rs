@@ -1,5 +1,5 @@
-use egg_sketches::{eclass_extract_sketch};
-use egg::{rewrite, CostFunction, Language, Id};
+use egg::{rewrite, CostFunction, Id, Language};
+use egg_sketches::eclass_extract_sketch;
 
 type Lang = egg::SymbolLang;
 type EGraph = egg::EGraph<Lang, ()>;
@@ -25,6 +25,7 @@ type Sketch = egg_sketches::Sketch<Lang>;
 // T o T = id
 // j o (s n) = id
 
+#[rustfmt::skip]
 pub fn common_rules() -> Vec<Rewrite> { vec![
     rewrite!("o-assoc1"; "(o (o ?f ?g) ?h)" => "(o ?f (o ?g ?h))"),
     rewrite!("o-assoc2"; "(o ?f (o ?g ?h))" => "(o (o ?f ?g) ?h)"),
@@ -35,6 +36,7 @@ pub fn common_rules() -> Vec<Rewrite> { vec![
     // rewrite!("transpose-after-maps"; "(o (m ?n1 (m ?n2 ?f)) T)" => "(o T (m ?n1 (m ?n2 ?f)))"),
 ] }
 
+#[rustfmt::skip]
 fn transpose_maps() -> Vec<Rewrite> { vec![
     rewrite!("transpose-maps"; "(m ?n1 (m ?n2 ?f))" => "(o T (o (m ?n2 (m ?n1 ?f)) T))"),
     // shortcut rules:
@@ -55,6 +57,7 @@ pub fn reorder_3d() {
     let start: Expr = "(m n1 (m n2 (m n3 f)))".parse().unwrap();
 
     // sketches for the reordered map nests we are looking for:
+    #[rustfmt::skip]
     let sketches: &[Sketch] = &[
         "(contains (m n1 (m n3 (m n2 f))))".parse().unwrap(),
         "(contains (m n2 (m n1 (m n3 f))))".parse().unwrap(),
@@ -64,6 +67,7 @@ pub fn reorder_3d() {
     ];
 
     // the corresponding full programs that we expect to find:
+    #[rustfmt::skip]
     let goals: &[Expr] = &[
         "(o (m n1 T) (o (m n1 (m n3 (m n2 f))) (m n1 T)))".parse().unwrap(),
         "(o T (o (m n2 (m n1 (m n3 f))) T))".parse().unwrap(),
@@ -90,9 +94,12 @@ pub fn reorder_3d() {
 #[ignore] // takes > 1mn
 pub fn tile_3d() {
     // 3 nested maps that we want to tile (split + reorder):
-    let start: Expr = "(m (* n1 32) (m (* n2 32) (m (* n3 32) f)))".parse().unwrap();
-    
+    let start: Expr = "(m (* n1 32) (m (* n2 32) (m (* n3 32) f)))"
+        .parse()
+        .unwrap();
+
     // sketches for the splitted map nests we are looking for:
+    #[rustfmt::skip]
     let split_sketches: &[Sketch] = &[
         "(contains (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))))".parse().unwrap(),
         "(contains (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))))".parse().unwrap(),
@@ -103,6 +110,7 @@ pub fn tile_3d() {
     ];
 
     // the corresponding full programs that we expect to find:
+    #[rustfmt::skip]
     let split_goals: &[Expr] = &[
         "(o (o j (m n1 (m 32 (m (* n2 32) (m (* n3 32) f))))) (s 32))".parse().unwrap(),
         "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))) (m (* n1 32) (s 32))))".parse().unwrap(),
@@ -111,7 +119,7 @@ pub fn tile_3d() {
         "(m (* n1 32) (o j (o (m n2 (m 32 (o j (o (m n3 (m 32 f)) (s 32))))) (s 32))))".parse().unwrap(),
         "(o (o j (m n1 (m 32 (o j (o (m n2 (m 32 (o j (o (m n3 (m 32 f)) (s 32))))) (s 32)))))) (s 32))".parse().unwrap(),
     ];
-    
+
     let mut split_rules = common_rules();
     split_rules.push(split_map());
 
@@ -122,12 +130,14 @@ pub fn tile_3d() {
 
     // extract the smallest programs from the e-graph that satisfy our sketches,
     // and check that they correspond to the expected full programs:
-    let split_exprs: Vec<_> = split_sketches.iter()
+    let split_exprs: Vec<_> = split_sketches
+        .iter()
         .zip(split_goals.iter())
         .map(|(sketch, goal)| sketch_extract_and_check(&egraph, eclass, sketch, goal))
         .collect();
 
     // sketches for the tiled map nests we are looking for:
+    #[rustfmt::skip]
     let sketches: &[Sketch] = &[
         "(contains (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))))".parse().unwrap(),
         "(contains (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))))".parse().unwrap(),
@@ -138,6 +148,7 @@ pub fn tile_3d() {
     ];
 
     // the corresponding full programs that we expect to find:
+    #[rustfmt::skip]
     let goals: &[Expr] = &[
         "(o j (o (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))) (s 32)))".parse().unwrap(),
         "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))) (m (* n1 32) (s 32))))".parse().unwrap(),
