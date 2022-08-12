@@ -474,6 +474,8 @@
 <span id="469">469</span>
 <span id="470">470</span>
 <span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">analysis</span>::{<span class="ident">one_shot_analysis</span>, <span class="ident">SemiLatticeAnalysis</span>};
 <span class="kw">use</span> <span class="ident">hashcons::ExprHashCons</span>;
@@ -528,7 +530,8 @@
                     .<span class="ident">filter</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">id</span><span class="op">|</span> {
                         <span class="kw">let</span> <span class="ident">eclass</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">egraph</span>[<span class="ident">id</span>];
 
-                        <span class="ident">egg::for_each_matching_node</span>(<span class="ident">eclass</span>, <span class="ident">node</span>, <span class="op">|</span><span class="ident">matched</span><span class="op">|</span> {
+                        <span class="kw">let</span> <span class="ident">mnode</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Id::from</span>(<span class="number">0</span>));
+                        <span class="ident">egg::for_each_matching_node</span>(<span class="ident">eclass</span>, <span class="ident">mnode</span>, <span class="op">|</span><span class="ident">matched</span><span class="op">|</span> {
                             <span class="kw">let</span> <span class="ident">children_match</span> <span class="op">=</span> <span class="ident">children_matches</span>
                                 .<span class="ident">iter</span>()
                                 .<span class="ident">zip</span>(<span class="ident">matched</span>.<span class="ident">children</span>())
@@ -692,7 +695,8 @@
                         <span class="kw">let</span> <span class="ident">eclass</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">egraph</span>[<span class="ident">id</span>];
                         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">candidates</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
 
-                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">egg::for_each_matching_node</span>(<span class="ident">eclass</span>, <span class="ident">node</span>, <span class="op">|</span><span class="ident">matched</span><span class="op">|</span> {
+                        <span class="kw">let</span> <span class="ident">mnode</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">node</span>.<span class="ident">clone</span>().<span class="ident">map_children</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Id::from</span>(<span class="number">0</span>));
+                        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">egg::for_each_matching_node</span>(<span class="ident">eclass</span>, <span class="ident">mnode</span>, <span class="op">|</span><span class="ident">matched</span><span class="op">|</span> {
                             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matches</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
                             <span class="kw">for</span> (<span class="ident">cm</span>, <span class="ident">id</span>) <span class="kw">in</span> <span class="ident">children_matches</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">matched</span>.<span class="ident">children</span>()) {
                                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">m</span>) <span class="op">=</span> <span class="ident">cm</span>.<span class="ident">get</span>(<span class="ident">id</span>) {
