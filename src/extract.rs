@@ -52,7 +52,8 @@ fn satisfies_sketch_rec<L: Language, A: Analysis<L>>(
                     .filter(|&id| {
                         let eclass = &egraph[id];
 
-                        egg::for_each_matching_node(eclass, node, |matched| {
+                        let mnode = &node.clone().map_children(|_| Id::from(0));
+                        egg::for_each_matching_node(eclass, mnode, |matched| {
                             let children_match = children_matches
                                 .iter()
                                 .zip(matched.children())
@@ -216,7 +217,8 @@ where
                         let eclass = &egraph[id];
                         let mut candidates = Vec::new();
 
-                        let _ = egg::for_each_matching_node(eclass, node, |matched| {
+                        let mnode = &node.clone().map_children(|_| Id::from(0));
+                        let _ = egg::for_each_matching_node(eclass, mnode, |matched| {
                             let mut matches = Vec::new();
                             for (cm, id) in children_matches.iter().zip(matched.children()) {
                                 if let Some(m) = cm.get(id) {
