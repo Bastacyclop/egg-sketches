@@ -10,6 +10,10 @@ They can also be seen as incomplete or partial programs as they can leave detail
 This library is born from our paper on [*Sketch-Guided Equality Saturation*](https://arxiv.org/abs/2111.13040),
 a semi-automatic technique that allows programmers to provide program sketches to guide rewriting.
 
+If you're new to `egg`,  e-graphs or equality saturation, the `egg` [tutorial](https://egraphs-good.github.io/egg/egg/tutorials/index.html) is good to get started.
+
+To see examples of how to use this sketch libary, you can look at the [tests](https://github.com/Bastacyclop/egg-sketches/blob/main/tests) on Github.
+
 */
 
 pub(crate) use egg::*;
