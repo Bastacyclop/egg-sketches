@@ -154,9 +154,11 @@ pub fn rules() -> Vec<Rewrite> { vec![
     rw!("pow1"; "(pow ?x 1)" => "?x"), // do we need the converse?
     rw!("pow2"; "(pow ?x 2)" => "(* ?x ?x)"),
     rw!("pow3"; "(pow ?x 3)" => "(* ?x (pow ?x 2))"),
+    rw!("pow4"; "(pow ?x 4)" => "(* (pow ?x 2) (pow ?x 2))"),
     rw!("1pow"; "?x" => "(pow ?x 1)"),
     rw!("2pow"; "(* ?x ?x)" => "(pow ?x 2)"),
     rw!("3pow"; "(* ?x (pow ?x 2))" => "(pow ?x 3)"),
+    rw!("4pow"; "(* (pow ?x 2) (pow ?x 2))" => "(pow ?x 4)"),
     //rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)"
     //    if is_not_zero("?x")),
     //rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
@@ -257,4 +259,30 @@ egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     sum_cubed_inv, rules(), "(+ (+ (pow x 3) (pow y 3)) (* (* (* 3 x) y) (+ x y)))" => "(pow (+ x y) 3)"
 }
+
+egg::test_fn! {
+    #[should_panic(expected = "Could not prove goal 0")]
+    binomial4, rules(),
+    runner = Runner::default()
+        .with_time_limit(std::time::Duration::from_secs(30))
+        .with_iter_limit(120)
+        .with_node_limit(200_000),
+    "(pow (+ x y) 4)"
+    =>
+    "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))"
+}
+
+egg::test_fn! {binomial4_step1, rules(), "(pow (+ x y) 4)" => "(* (pow (+ x y) 2) (pow (+ x y) 2))"}
+egg::test_fn! {binomial4_step2, rules(), "(* (pow (+ x y) 2) (pow (+ x y) 2))" => "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))"}
+egg::test_fn! {
+    binomial4_step3, rules(),
+    runner = Runner::default()
+        .with_time_limit(std::time::Duration::from_secs(30))
+        .with_iter_limit(120)
+        .with_node_limit(200_000),
+    "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))"
+    =>
+    "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))"
+}
+
 //egg::test_fn! {difference_cubed, rules(), "(pow 3 (- x y))" => "(- (- (pow 3 x) (pow 3 y)) (* (* (* 3 x) y) (- x y)))" }
