@@ -1,5 +1,6 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
+use egg_sketches::eclass_extract_sketch;
 
 
 define_language! {
@@ -17,6 +18,7 @@ define_language! {
 pub type EGraph = egg::EGraph<Lang, ConstantFold>;
 pub type Rewrite = egg::Rewrite<Lang, ConstantFold>;
 pub type Constant = NotNan<f64>;
+type Expr = egg::RecExpr<Lang>;
 type Sketch = egg_sketches::Sketch<Lang>;
 
 // You could use egg::AstSize, but this is useful for debugging, since
@@ -282,7 +284,105 @@ egg::test_fn! {
         .with_node_limit(200_000),
     "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))"
     =>
+    //"(+ (pow x 4) (+ (pow y 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (* 4 (* x (pow y 3)))))))"
     "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))"
 }
 
-//egg::test_fn! {difference_cubed, rules(), "(pow 3 (- x y))" => "(- (- (pow 3 x) (pow 3 y)) (* (* (* 3 x) y) (- x y)))" }
+#[test]
+pub fn binomial4_sketches() {
+    let mut rules = rules();
+
+    // 3 nested maps that we want to reorder:
+    let start: Expr = "(pow (+ x y) 4)".parse().unwrap();
+
+    // sketches for the reordered map nests we are looking for:
+    #[rustfmt::skip]
+    let sketches: &[Sketch] = &[
+        "(contains (* (pow (+ x y) 2) (pow (+ x y) 2)))".parse().unwrap(),
+        "(contains (* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2)))))".parse().unwrap(),
+        "(contains (+ (pow x 4) (+ ? (+ ? (+ ? (pow y 4))))))".parse().unwrap(),
+        //"(contains (+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4))))))".parse().unwrap(),
+
+    ];
+
+    // the corresponding full programs that we expect to find:
+    #[rustfmt::skip]
+    let goals: &[Expr] = &[
+        "(* (pow (+ x y) 2) (pow (+ x y) 2))".parse().unwrap(),
+        "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))".parse().unwrap(),
+        "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))".parse().unwrap(),
+        //"(+ (pow x 4) (+ (pow y 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (* 4 (* x (pow y 3)))))))".parse().unwrap(),
+    ];
+
+    // grow an e-graph to explore different ways to rewrite `start`
+    let mut egraph = EGraph::default();
+    let eclass = egraph.add_expr(&start);
+    let egraph = grow_egraph(egraph, 1_000_000, &rules[..]);
+
+    // extract the smallest programs from the e-graph that satisfy our sketches,
+    // and check that they correspond to the expected full programs:
+    for (sketch, goal) in sketches.iter().zip(goals.iter()) {
+        sketch_extract_and_check(&egraph, eclass, sketch, goal);
+    }
+}
+
+fn grow_egraph(egraph: EGraph, node_limit: usize, rules: &[Rewrite]) -> EGraph {
+    let runner = egg::Runner::default()
+        //.with_scheduler(egg::SimpleScheduler)
+        .with_iter_limit(120)
+        .with_node_limit(node_limit)
+        .with_time_limit(std::time::Duration::from_secs(30))
+        .with_egraph(egraph)
+        .run(&rules[..]);
+    runner.print_report();
+    runner.egraph
+}
+
+fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: &Expr) -> Expr {
+    let canonic_eclass = egraph.find(eclass);
+    assert_eq!(egraph.lookup_expr(goal), Some(canonic_eclass));
+
+    let res = eclass_extract_sketch(sketch, egg::AstSize, &egraph, canonic_eclass);
+    let (best_cost, best) = res.unwrap();
+    let bs = string_of_expr(&best);
+    let gs = string_of_expr(goal);
+    println!("{}", bs);
+    println!("{}", gs);
+    assert_eq!(best_cost, egg::AstSize.cost_rec(&goal));
+    assert_eq!(bs, gs);
+
+    best
+}
+
+fn string_of_expr(e: &Expr) -> String {
+    let mut res = String::new();
+    string_of_expr_rec(e.as_ref(), e.as_ref().len() - 1, &mut res);
+    res
+}
+
+fn string_of_expr_rec(nodes: &[Lang], i: usize, acc: &mut String) {
+    use std::fmt::Write;
+
+    let node = &nodes[i];
+    let op = node.to_string();
+
+    if op == "o" {
+        let cs = node.children();
+        string_of_expr_rec(nodes, usize::from(cs[0]), acc);
+        write!(acc, " o ").unwrap();
+        string_of_expr_rec(nodes, usize::from(cs[1]), acc);
+        return;
+    }
+
+    if node.is_leaf() {
+        write!(acc, "{}", op).unwrap();
+        return;
+    }
+
+    write!(acc, "({}", op).unwrap();
+    for child in node.children().iter().map(|i| usize::from(*i)) {
+        write!(acc, " ").unwrap();
+        string_of_expr_rec(nodes, child, acc);
+    }
+    write!(acc, ")").unwrap();
+}
