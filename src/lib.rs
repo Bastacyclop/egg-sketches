@@ -18,7 +18,7 @@ To see examples of how to use this sketch libary, you can look at the [tests](ht
 
 pub(crate) use egg::*;
 
-mod analysis;
+pub mod analysis;
 mod extract;
 mod hashcons;
 mod sketch;
