@@ -1,6 +1,7 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
-use egg_sketches::eclass_extract_sketch;
+use egg_sketches::{eclass_extract_sketch};
+//use egg_sketches::sketch_guided_search;
 
 
 define_language! {
@@ -121,6 +122,66 @@ fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
         }
     }
 }
+
+pub type N = ConstantFold;
+pub type L = Lang;
+// insprired on https://github.com/opencompl/egg-tactic-code/blob/8b4aa748047a43213fc2c0dfca6b7af4a475f785/json-egg/src/main.rs#L368
+pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>, 
+    rewrites : &[Rewrite], iter_limit: usize, node_limit: usize,
+    time_limit: std::time::Duration,) -> Result< (RecExpr<L>,() ), String> { // FIXME: return explanation
+    let mut graph : egg::EGraph<L,N> = EGraph::default().with_explanations_enabled();
+    let lhs_id = graph.add_expr(&start);
+    let sketch_clone = sketch.clone();
+    let hook = move |runner :  &mut Runner<Lang, ConstantFold>| {
+        if let Some(rhs_id) = eclass_extract_sketch(&sketch_clone, egg::AstSize, &runner.egraph, lhs_id){
+            // panic!("same equivalence class".to_string());
+            Result::Err("now in same equivalence class".to_string())
+        } else {
+            Result::Ok(())
+        }
+    };
+    let mut runner : Runner<L, N> = Runner::default()
+      .with_node_limit(node_limit)
+      .with_time_limit(time_limit)
+      .with_iter_limit(iter_limit)
+      .with_egraph(graph)
+      //.with_explanations_enabled()
+      .with_hook(hook)
+      .run(rewrites);
+    let mut egraph = runner.egraph.without_explanation_length_optimization();
+    //FIXME: we're computing this twice, once in the hook and once here.
+    let op_rhs = eclass_extract_sketch(&sketch.clone(), egg::AstSize, &egraph, lhs_id); 
+    if let Some( (_ ,rhs_expr)) = op_rhs {
+        let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
+            & rhs_expr);
+        let flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
+        return Result::Ok((rhs_expr, ()))
+    } else {
+        return Result::Err("sketch not found".to_string())
+    }
+}
+
+pub fn sketch_guided_search( sketches: &[egg_sketches::Sketch<L>], start: &RecExpr<L>,
+    rewrites : &[Rewrite], iter_limit: usize, node_limit: usize,
+    time_limit: std::time::Duration,) -> Result< Vec<(RecExpr<L>,())>, String> {
+        let mut res : Vec<(RecExpr<L>,())> = Vec::new(); // FIXME: we're not using the explanation because I don't know enough Rust
+        let mut cur : RecExpr<L> = start.clone();
+        for sketch in sketches {
+            let result = find_sketch(sketch, &cur, rewrites, iter_limit, node_limit, time_limit);
+            if let Ok((expr,S)) = result {
+                cur = expr.clone();
+                res.push((expr,()));
+            }
+            else {
+                return Result::Err("sketch not found".to_string());
+            }
+        }
+        if res.len() == sketches.len() {
+            return Result::Ok(res);
+        } else {
+            return Result::Err("function called with empty list of sketches".to_string())
+        }
+    }
 
 #[rustfmt::skip]
 pub fn rules() -> Vec<Rewrite> { vec![
@@ -301,30 +362,32 @@ pub fn binomial4_sketches() {
         "(contains (* (pow (+ x y) 2) (pow (+ x y) 2)))".parse().unwrap(),
         "(contains (* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2)))))".parse().unwrap(),
         "(contains (+ (pow x 4) (+ ? (+ ? (+ ? (pow y 4))))))".parse().unwrap(),
-        //"(contains (+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4))))))".parse().unwrap(),
+        "(contains (+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4))))))".parse().unwrap(),
 
     ];
 
     // the corresponding full programs that we expect to find:
     #[rustfmt::skip]
     let goals: &[Expr] = &[
-        "(* (pow (+ x y) 2) (pow (+ x y) 2))".parse().unwrap(),
-        "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))".parse().unwrap(),
-        "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))".parse().unwrap(),
-        //"(+ (pow x 4) (+ (pow y 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (* 4 (* x (pow y 3)))))))".parse().unwrap(),
-    ];
+            "(* (pow (+ x y) 2) (pow (+ x y) 2))".parse().unwrap(),
+            "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))".parse().unwrap(),
+            "(+ (pow x 4) (+ (* (pow x 2) (* y (+ (* 2 x) y))) (+ (* (* y (+ (* 2 x) y)) (* x (+ x (* 2 y)))) (+ (* (* (* 2 (* x y)) y) y) (pow y 4)))))".parse().unwrap(),
+            "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))".parse().unwrap(),
+        ];
 
     // grow an e-graph to explore different ways to rewrite `start`
-    let mut egraph = EGraph::default();
-    let eclass = egraph.add_expr(&start);
-    let egraph = grow_egraph(egraph, 1_000_000, &rules[..]);
+    let res = sketch_guided_search(&sketches, &start, &mut rules,
+                                            120, 200_000, std::time::Duration::from_secs(30));
 
-    // extract the smallest programs from the e-graph that satisfy our sketches,
-    // and check that they correspond to the expected full programs:
-    for (sketch, goal) in sketches.iter().zip(goals.iter()) {
-        sketch_extract_and_check(&egraph, eclass, sketch, goal);
+    // check that we found the expected programs
+    for ((res_expr,_), goal) in res.unwrap().iter().zip(goals.iter()) {
+      let bs = string_of_expr(&res_expr);
+      let gs = string_of_expr(goal);
+      //println!("{} == {}", bs, gs);
+      assert_eq!(bs, gs);
     }
 }
+
 
 fn grow_egraph(egraph: EGraph, node_limit: usize, rules: &[Rewrite]) -> EGraph {
     let runner = egg::Runner::default()
