@@ -133,6 +133,7 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
     let lhs_id = graph.add_expr(&start);
     let sketch_clone = sketch.clone();
     let hook = move |runner :  &mut Runner<Lang, ConstantFold>| {
+        // use bool
         if let Some(rhs_id) = eclass_extract_sketch(&sketch_clone, egg::AstSize, &runner.egraph, lhs_id){
             // panic!("same equivalence class".to_string());
             Result::Err("now in same equivalence class".to_string())
@@ -325,11 +326,11 @@ egg::test_fn! {
 
 egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
-    binomial4, rules(),
+    binomial4_single_step, rules(),
     runner = Runner::default()
-        .with_time_limit(std::time::Duration::from_secs(30))
-        .with_iter_limit(120)
-        .with_node_limit(200_000),
+        .with_time_limit(std::time::Duration::from_secs(3000))
+        .with_iter_limit(100_000)
+        .with_node_limit(8_000_000),
     "(pow (+ x y) 4)"
     =>
     "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))"

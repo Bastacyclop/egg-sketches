@@ -1,5 +1,5 @@
 use egg::{Id, Language, RecExpr};
-use std::fmt::{self, Display, Formatter};
+use std::{fmt::{self, Display, Formatter}};
 use thiserror::Error;
 
 /// A [`Sketch`] is a program pattern that is satisfied by a family of programs.
