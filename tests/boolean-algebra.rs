@@ -128,7 +128,11 @@ pub fn rules() -> Vec<Rewrite> { vec![
   rw!("sup_assoc"; "(sqcap ?a (sqcap ?b ?c))" => "(sqcap (sqcap ?a ?b) ?c)"),
   rw!("inf_assoc"; "(sqcup ?a (sqcup ?b ?c))" => "(sqcup (sqcup ?a ?b) ?c)"),
   rw!("sup_comm"; "(sqcup ?a ?b)" => "(sqcup ?b ?a)"),
-  rw!("inf_comm"; "(sqcap ?a ?b)" => "(sqcap ?b ?a)")
+  rw!("inf_comm"; "(sqcap ?a ?b)" => "(sqcap ?b ?a)"),
+  rw!("sup_assoc'"; "(sqcap (sqcap ?a ?b) ?c)" => "(sqcap ?a (sqcap ?b ?c))"),
+  rw!("inf_assoc'"; "(sqcup (sqcup ?a ?b) ?c)" => "(sqcup ?a (sqcup ?b ?c))"),
+  rw!("sup_comm'"; "(sqcup ?b ?a)" => "(sqcup ?a ?b)"),
+  rw!("inf_comm'"; "(sqcap ?b ?a)" => "(sqcap ?a ?b)")
 ]}
 
 egg::test_fn! {
