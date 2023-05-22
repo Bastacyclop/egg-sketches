@@ -23,7 +23,8 @@ type Sketch = egg_sketches::Sketch<Lang>;
 // You could use egg::AstSize, but this is useful for debugging, since
 // it will really try to get rid of the Diff operator
 
-#[derive(Default)]
+// FIXME: should Clone be required?
+#[derive(Default, Clone)]
 pub struct ConstantFold;
 impl Analysis<Lang> for ConstantFold {
     type Data = Option<(Constant, PatternAst<Lang>)>;
@@ -79,10 +80,12 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
       .with_node_limit(node_limit)
       .with_time_limit(time_limit)
       .with_iter_limit(iter_limit)
+      .with_scheduler(SimpleScheduler)
       .with_egraph(graph)
       //.with_explanations_enabled()
       .with_hook(hook)
       .run(rewrites);
+    runner.print_report();
     let mut egraph = runner.egraph.without_explanation_length_optimization();
     //FIXME: we're computing this twice, once in the hook and once here.
     let op_rhs = eclass_extract_sketch(&sketch.clone(), egg::AstSize, &egraph, lhs_id); 
@@ -119,68 +122,108 @@ pub fn sketch_guided_search( sketches: &[egg_sketches::Sketch<L>], start: &RecEx
     }
 
 #[rustfmt::skip]
-pub fn rules() -> Vec<Rewrite> { vec![
-  rw!("sup_inf_left"; "(sqcup ?x (sqcap ?y ?z))" => "(sqcap (sqcup ?x ?y) (sqcup ?x ?z))"),
-  rw!("inf_sup_left"; "(sqcap ?x (sqcup ?y ?z))" => "(sqcup (sqcap ?x ?y) (sqcap ?x ?z))"),
-  rw!("sup_inf_sdiff"; "(sqcup (sqcap ?x ?y) (setminus ?x ?y))" => "(?x)"),
-  rw!("sup_inf_self"; "(sqcup ?a (sqcap ?a ?b))" => "(?a)"),
-  rw!("inf_idem"; "(sqcap ?a ?a)" => "(?a)"),
-  rw!("sup_assoc"; "(sqcap ?a (sqcap ?b ?c))" => "(sqcap (sqcap ?a ?b) ?c)"),
-  rw!("inf_assoc"; "(sqcup ?a (sqcup ?b ?c))" => "(sqcup (sqcup ?a ?b) ?c)"),
-  rw!("sup_comm"; "(sqcup ?a ?b)" => "(sqcup ?b ?a)"),
-  rw!("inf_comm"; "(sqcap ?a ?b)" => "(sqcap ?b ?a)"),
-  rw!("sup_assoc'"; "(sqcap (sqcap ?a ?b) ?c)" => "(sqcap ?a (sqcap ?b ?c))"),
-  rw!("inf_assoc'"; "(sqcup (sqcup ?a ?b) ?c)" => "(sqcup ?a (sqcup ?b ?c))"),
-  rw!("sup_comm'"; "(sqcup ?b ?a)" => "(sqcup ?a ?b)"),
-  rw!("inf_comm'"; "(sqcap ?b ?a)" => "(sqcap ?a ?b)")
-]}
+pub fn rules() -> Vec<Rewrite> {
+  let mut rules = vec![
+    rw!("sup_inf_left"; "(sqcup ?x (sqcap ?y ?z))" <=> "(sqcap (sqcup ?x ?y) (sqcup ?x ?z))"),
+    rw!("inf_sup_left"; "(sqcap ?x (sqcup ?y ?z))" <=> "(sqcup (sqcap ?x ?y) (sqcap ?x ?z))"),
+    rw!("sup_assoc"; "(sqcap ?a (sqcap ?b ?c))" <=> "(sqcap (sqcap ?a ?b) ?c)"),
+    rw!("inf_assoc"; "(sqcup ?a (sqcup ?b ?c))" <=> "(sqcup (sqcup ?a ?b) ?c)"),
+    rw!("sup_comm"; "(sqcup ?a ?b)" <=> "(sqcup ?b ?a)"),
+    rw!("inf_comm"; "(sqcap ?a ?b)" <=> "(sqcap ?b ?a)"),
+    rw!("sup_assoc'"; "(sqcap (sqcap ?a ?b) ?c)" <=> "(sqcap ?a (sqcap ?b ?c))"),
+    rw!("inf_assoc'"; "(sqcup (sqcup ?a ?b) ?c)" <=> "(sqcup ?a (sqcup ?b ?c))"),
+    rw!("sup_comm'"; "(sqcup ?b ?a)" <=> "(sqcup ?a ?b)"),
+    rw!("inf_comm'"; "(sqcap ?b ?a)" <=> "(sqcap ?a ?b)")
+  ].concat();
+  rules.extend(vec![
+    rw!("sup_inf_sdiff"; "(sqcup (sqcap ?x ?y) (setminus ?x ?y))" => "(?x)"),
+    rw!("sup_inf_self"; "(sqcup ?a (sqcap ?a ?b))" => "(?a)"),
+    rw!("inf_idem"; "(sqcap ?a ?a)" => "(?a)"),
+  ]);
+  rules
+}
 
-egg::test_fn! {
+macro_rules! test_fn_crash {
+    (
+        $(#[$meta:meta])*
+        $name:ident, $rules:expr,
+        $(runner = $runner:expr,)?
+        $start:literal
+        =>
+        $($goal:literal),+ $(,)?
+    ) => {
+
+    $(#[$meta])*
+    #[test]
+    pub fn $name() {
+        // NOTE this is no longer needed, we always check
+        let check = true;
+        $crate::test::test_runner(
+            stringify!($name),
+            None $(.or(Some($runner)))?,
+            &$rules,
+            $start.parse().unwrap(),
+            &[$( $goal.parse().unwrap() ),+],
+            None,
+            check,
+        );
+        panic!("hello");
+    }};
+}
+
+test_fn_crash! {
   sdiff_sup1, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcup (sqcap y (sqcup x z)) (sqcap (setminus y x) (setminus y z)))" => "(y)" }
-egg::test_fn! {
+test_fn_crash! {
   subgoal1, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcup (sqcap y (sqcup x z)) (sqcap (setminus y x) (setminus y z)))" => "(sqcap (sqcap y (sqcup (sqcup x z) (setminus y x))) (sqcap y (sqcup (sqcup x z) (setminus y z))))" }
-egg::test_fn! {
+test_fn_crash! {
   subgoal2, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup (sqcup x z) (setminus y x))) (sqcap y (sqcup (sqcup x z) (setminus y z))))" => "(sqcap (sqcap y (sqcup x (sqcap y (sqcup z (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" }
-egg::test_fn! {
+test_fn_crash! {
   subgoal3, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup x (sqcap y (sqcup z (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" => "(sqcap (sqcap y (sqcup z (sqcap y (sqcup x (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" }
-egg::test_fn! {
+test_fn_crash! {
   subgoal4, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup z (sqcap y (sqcup x (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" => "(sqcap (sqcap y (sqcup z y)) (sqcap y (sqcup x y)))" }
-egg::test_fn! {
+test_fn_crash! {
   subgoal5, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup z y)) (sqcap y (sqcup x y)))" => "(sqcap (sqcup y (sqcap y z)) (sqcup y (sqcap y x)))" }
-egg::test_fn! {
+test_fn_crash! {
   subgoal6, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
       .with_iter_limit(120)
+      .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcup y (sqcap y z)) (sqcup y (sqcap y x)))" => "(y)" }
