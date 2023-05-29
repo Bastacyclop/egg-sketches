@@ -49,105 +49,62 @@ fn transpose_maps() -> Vec<Rewrite> { vec![
     // rewrite!("transpose-maps-3"; "(m ?n1 (m ?n2 (m ?n3 (m ?n4 ?f))))" => "(o (m ?n1 (m ?n2 T)) (o (m ?n1 (m ?n2 (m ?n4 (m ?n3 ?f)))) (m ?n1 (m ?n2 T))"),
 ] }
 
-fn split_map() -> Rewrite {
+fn split_map() -> Vec<Rewrite> { vec![
     rewrite!("split-map"; "(m (* ?n1 ?n2) ?f)" => "(o j (o (m ?n1 (m ?n2 ?f)) (s ?n2)))")
-}
+    // rewrite!("split-map-32"; "(m ?n ?f)" => "(o j (o (m (/ ?n 32) (m 32 ?f)) (s 32)))"),
+    // n = (n1 * n2) / n2 = n1
+    // rewrite!("mul-div-id"; "(/ (* ?n1 ?n2) ?n2)" => "?n1"),
+] }
 
-fn reach_sketches_from_exprs(
-    starts: &[Expr],
-    rules: &[Rewrite],
-    sketch_goals: &[Sketch],
-    expected_goals: &[Expr]) -> Vec<Expr>
-{
-    let mut egraph = EGraph::default();
-    let eclass = starts.iter()
-        .map(|e| egraph.add_expr(e))
-        .collect::<Vec<_>>().into_iter()
-        .reduce(|a, b| { egraph.union(a, b); a })
-        .expect("need at least one starting expression");
-    let sketches_hook = sketch_goals.to_owned();
-    let egraph = grow_egraph_until(egraph, rules, move |r| {
-        let cano_eclass = r.egraph.find(eclass);
-        sketches_hook.iter().all(|s| {
-            eclass_extract_sketch(s, egg::AstSize, &r.egraph, cano_eclass).is_some()
-            // FIXME:
-            // eclass_satisfies_sketch(s, &r.egraph, cano_eclass)
-        })
-    });
-    
-    let cano_eclass = egraph.find(eclass);
-    sketch_goals.iter().zip(expected_goals.iter())
-        .map(|(sketch, expected)| sketch_extract_and_check(&egraph, cano_eclass, sketch, expected))
-        .collect()
-}
-
-pub fn tile(
-    start: &str,
-    split_sketches: &[&str],
-    split_expected: &[&str],
-    reorder_sketches: &[&str],
-    reorder_expected: &[&str],
-) -> Vec<Expr> {
-
-    let mut split_rules = common_rules();
-    split_rules.push(split_map());
-    let ss: Vec<Sketch> = split_sketches.iter().map(|s| s.parse::<Sketch>().unwrap()).collect();
-    let se: Vec<Expr> = split_expected.iter().map(|&s| s.parse::<Expr>().unwrap()).collect();
-
-    let mut reorder_rules = common_rules();
-    reorder_rules.extend(transpose_maps().into_iter());
-    let rs: Vec<Sketch> = reorder_sketches.iter().map(|&s| s.parse::<Sketch>().unwrap()).collect();
-    let re: Vec<Expr> = reorder_expected.iter().map(|&s| s.parse::<Expr>().unwrap()).collect();
-
-    let split_exprs = reach_sketches_from_exprs(
-        &[start.parse().unwrap()],
-        &split_rules[..], &ss[..], &se[..]
-    );
-    reach_sketches_from_exprs(
-        &split_exprs[..],
-        &reorder_rules[..], &rs[..], &re[..]
+fn tile_1d() -> Vec<Expr> {
+    tile( "1d",
+        // 1 nested map that we want to tile (split + reoder):
+        "(m (* n1 32) f)",
+        // sketches for the splitted map nests we are looking for:
+        &[ "(contains (m n1 (m 32 f)))" ],
+        &[ "(o j (o (m n1 (m 32 f)) (s 32)))" ],
+        // there's nothing to reorder in 1d:
+        &[ "(contains (m n1 (m 32 f)))" ],
+        &[ "(o j (o (m n1 (m 32 f)) (s 32)))" ],
     )
 }
 
-pub fn tile_1d() -> Vec<Expr> {
-    vec![]
-}
-
-pub fn tile_2d() -> Vec<Expr> {
-    vec![]
-}
-
-#[rustfmt::skip]
-pub fn reorder_3d() -> Vec<Expr> {
-    let mut rules = common_rules();
-    rules.extend(transpose_maps().into_iter());
-
-    reach_sketches_from_exprs(
-        // 3 nested maps that we want to reorder:
-        &[ "(m n1 (m n2 (m n3 f)))".parse().unwrap() ],
-        &rules[..],
-        // sketches for the reordered map nests we are looking for:
+fn tile_2d() -> Vec<Expr> {
+    tile( "2d",
+        // 2 nested maps that we want to tile (split + reorder):
+        "(m (* n1 32) (m (* n2 32) f))",
+        // sketches for the splitted map nests we are looking for:
         &[
-            "(contains (m n1 (m n3 (m n2 f))))".parse().unwrap(),
-            "(contains (m n2 (m n1 (m n3 f))))".parse().unwrap(),
-            "(contains (m n2 (m n3 (m n1 f))))".parse().unwrap(),
-            "(contains (m n3 (m n2 (m n1 f))))".parse().unwrap(),
-            "(contains (m n3 (m n1 (m n2 f))))".parse().unwrap(),
+            "(contains (m n1 (m 32 (m (* n2 32) f))))",
+            "(contains (m (* n1 32) (m n2 (m 32 f))))",
+            "(contains (m n1 (m 32 (contains (m n2 (m 32 f))))))",
         ],
         // the corresponding full programs that we expect to find:
         &[
-            "(o (m n1 T) (o (m n1 (m n3 (m n2 f))) (m n1 T)))".parse().unwrap(),
-            "(o T (o (m n2 (m n1 (m n3 f))) T))".parse().unwrap(),
-            "(o (o T (m n2 T)) (o (m n2 (m n3 (m n1 f))) (o (m n2 T) T)))".parse().unwrap(),
-            "(o (o (o (o T (m n2 T)) T) (o (m n3 (m n2 (m n1 f))) (o T (m n2 T)))) T)".parse().unwrap(),
-            "(o (m n1 T) (o (o T (o (m n3 (m n1 (m n2 f))) T)) (m n1 T)))".parse().unwrap(),
+            "(o j (o (m n1 (m 32 (m (* n2 32) f))) (s 32)))",
+            "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 f))) (m (* n1 32) (s 32))))",
+            "(o j (o (m n1 (m 32 (o j (o (m n2 (m 32 f)) (s 32))))) (s 32)))",
+        ],
+        // sketches for the tiled map nests we are looking for:       
+        &[
+            "(contains (m n1 (m 32 (m (* n2 32) f))))",
+            "(contains (m (* n1 32) (m n2 (m 32 f))))",
+            "(contains (m n1 (m 32 (contains (m n2 (m 32 f))))))",
+            "(contains (m n1 (contains (m n2 (contains (m 32 (m 32 f)))))))",
+        ],
+        &[
+            "(o j (o (m n1 (m 32 (m (* n2 32) f))) (s 32)))",
+            "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 f))) (m (* n1 32) (s 32))))",
+            "(o j (o (m n1 (m 32 (o j (o (m n2 (m 32 f)) (s 32))))) (s 32)))",
+            "(o j (o (m n1 (o (o (o (o (m 32 j) T) (m n2 (m 32 (m 32 f)))) T) (m 32 (s 32)))) (s 32)))",
+            // "(o j (o (m n1 (o T (o j (o (m n2 (m 32 (m 32 f))) (o (s 32) T))))) (s 32)))",
         ]
     )
 }
 
 #[rustfmt::skip]
-pub fn tile_3d() -> Vec<Expr> {
-    tile(
+fn tile_3d() -> Vec<Expr> {
+    tile( "3d",
         // 3 nested maps that we want to tile (split + reorder):
         "(m (* n1 32) (m (* n2 32) (m (* n3 32) f)))",
         // sketches for the splitted map nests we are looking for:
@@ -189,25 +146,124 @@ pub fn tile_3d() -> Vec<Expr> {
     )
 }
 
-fn grow_egraph_until<S>(egraph: EGraph, rules: &[Rewrite], mut satisfied: S) -> EGraph
+fn tile(
+    name: &str,
+    start: &str,
+    split_sketches: &[&str],
+    split_expected: &[&str],
+    reorder_sketches: &[&str],
+    reorder_expected: &[&str],
+) -> Vec<Expr> {
+    let mut split_rules = common_rules();
+    split_rules.extend(split_map().into_iter());
+    let ss: Vec<Sketch> = split_sketches.iter().map(|s| s.parse::<Sketch>().unwrap()).collect();
+    let se: Vec<Expr> = split_expected.iter().map(|&s| s.parse::<Expr>().unwrap()).collect();
+
+    let mut reorder_rules = common_rules();
+    reorder_rules.extend(transpose_maps().into_iter());
+    let rs: Vec<Sketch> = reorder_sketches.iter().map(|&s| s.parse::<Sketch>().unwrap()).collect();
+    let re: Vec<Expr> = reorder_expected.iter().map(|&s| s.parse::<Expr>().unwrap()).collect();
+
+    let mut tile_rules = common_rules();
+    tile_rules.extend(split_map().into_iter());
+    tile_rules.extend(transpose_maps().into_iter());
+
+    let split_exprs = reach_sketches_from_exprs(
+        &format!("tile_{}_s", name),
+        &[start.parse().unwrap()],
+        &split_rules[..], &ss[..], &se[..],
+    );
+    reach_sketches_from_exprs(
+        &format!("tile_{}_r", name),
+        &split_exprs[..],
+        &reorder_rules[..], &rs[..], &re[..],
+    );
+    reach_sketches_from_exprs(
+        &format!("tile_{}", name),
+        &[start.parse().unwrap()],
+        &tile_rules[..], &rs[..], &[],
+        // may find different programs: &re[..],
+    )
+}
+
+#[rustfmt::skip]
+fn reorder_3d() -> Vec<Expr> {
+    let mut rules = common_rules();
+    rules.extend(transpose_maps().into_iter());
+
+    reach_sketches_from_exprs(
+        "reorder_3d",
+        // 3 nested maps that we want to reorder:
+        &[ "(m n1 (m n2 (m n3 f)))".parse().unwrap() ],
+        &rules[..],
+        // sketches for the reordered map nests we are looking for:
+        &[
+            "(contains (m n1 (m n3 (m n2 f))))".parse().unwrap(),
+            "(contains (m n2 (m n1 (m n3 f))))".parse().unwrap(),
+            "(contains (m n2 (m n3 (m n1 f))))".parse().unwrap(),
+            "(contains (m n3 (m n2 (m n1 f))))".parse().unwrap(),
+            "(contains (m n3 (m n1 (m n2 f))))".parse().unwrap(),
+        ],
+        // the corresponding full programs that we expect to find:
+        &[
+            "(o (m n1 T) (o (m n1 (m n3 (m n2 f))) (m n1 T)))".parse().unwrap(),
+            "(o T (o (m n2 (m n1 (m n3 f))) T))".parse().unwrap(),
+            "(o (o T (m n2 T)) (o (m n2 (m n3 (m n1 f))) (o (m n2 T) T)))".parse().unwrap(),
+            "(o (o (o (o T (m n2 T)) T) (o (m n3 (m n2 (m n1 f))) (o T (m n2 T)))) T)".parse().unwrap(),
+            "(o (m n1 T) (o (o T (o (m n3 (m n1 (m n2 f))) T)) (m n1 T)))".parse().unwrap(),
+        ],
+    )
+}
+
+fn reach_sketches_from_exprs(
+    search_name: &str,
+    starts: &[Expr],
+    rules: &[Rewrite],
+    sketch_goals: &[Sketch],
+    expected_goals: &[Expr], // may be empty to avoid checks
+) -> Vec<Expr>
+{
+    let mut egraph = EGraph::default();
+    let eclass = starts.iter()
+        .map(|e| egraph.add_expr(e))
+        .collect::<Vec<_>>().into_iter()
+        .reduce(|a, b| { egraph.union(a, b); a })
+        .expect("need at least one starting expression");
+    let sketches_hook = sketch_goals.to_owned();
+    let egraph = grow_egraph_until(search_name, egraph, rules, move |r| {
+        let cano_eclass = r.egraph.find(eclass);
+        sketches_hook.iter().all(|s| {
+            eclass_extract_sketch(s, egg::AstSize, &r.egraph, cano_eclass).is_some()
+            // FIXME:
+            // eclass_satisfies_sketch(s, &r.egraph, cano_eclass)
+        })
+    });
+    
+    let cano_eclass = egraph.find(eclass);
+    // FIXME: will return empty vec if expected goals is empty
+    sketch_goals.iter().zip(expected_goals.iter())
+        .map(|(sketch, expected)| sketch_extract_and_check(&egraph, cano_eclass, sketch, expected))
+        .collect()
+}
+
+fn grow_egraph_until<S>(
+    search_name: &str,
+    egraph: EGraph,
+    rules: &[Rewrite], 
+    mut satisfied: S
+) -> EGraph
   where S: FnMut(&mut Runner) -> bool + 'static
 {
+    let search_name_hook = search_name.to_owned();
     let runner = egg::Runner::default()
         .with_scheduler(egg::SimpleScheduler)
         .with_iter_limit(100)
         .with_node_limit(10_000_000)
         .with_time_limit(std::time::Duration::from_secs(5 * 60))
         .with_hook(move |runner| {
-          let memory = memory_stats().expect("could not get current memory usage");
-          let out_of_memory = memory.virtual_mem > 8_000_000_000;
-          println!("current physical memory usage: {}", memory.physical_mem);
-          println!("current virtual memory usage: {}", memory.virtual_mem);
-
+          let mut out_of_memory = false;
           if let Some(it) = runner.iterations.last() {
-            println!("current e-graph nodes: {}", it.egraph_nodes);
-            println!("current e-graph classes: {}", it.egraph_classes);
-            println!("applied rules: {}", it.applied.iter().map(|(_, &n)| n).sum::<usize>());
-            println!("time spent: {} ({} hook + {} search + {} apply + {} rebuild)", it.total_time, it.hook_time, it.search_time, it.apply_time, it.rebuild_time);
+            out_of_memory = iteration_stats(&search_name_hook, it, runner.iterations.len() - 1);
           }
 
           if satisfied(runner) {
@@ -220,8 +276,40 @@ fn grow_egraph_until<S>(egraph: EGraph, rules: &[Rewrite], mut satisfied: S) -> 
         })
         .with_egraph(egraph)
         .run(&rules[..]);
+    iteration_stats(search_name, runner.iterations.last().unwrap(), runner.iterations.len() - 1);
     runner.print_report();
     runner.egraph
+}
+
+// search name,
+// iteration number,
+// physical memory,
+// virtual memory,
+// e-graph nodes,
+// e-graph classes,
+// applied rules,
+// total time,
+// hook time,
+// search time,
+// apply time,
+// rebuild time
+fn iteration_stats(search_name: &str, it: &egg::Iteration<()>, it_number: usize) -> bool {
+    let memory = memory_stats().expect("could not get current memory usage");
+    let out_of_memory = memory.virtual_mem > 8_000_000_000;
+    eprintln!("{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+        search_name,
+        it_number,
+        memory.physical_mem,
+        memory.virtual_mem,
+        it.egraph_nodes,
+        it.egraph_classes,
+        it.applied.iter().map(|(_, &n)| n).sum::<usize>(),
+        it.total_time,
+        it.hook_time,
+        it.search_time,
+        it.apply_time,
+        it.rebuild_time);
+    out_of_memory
 }
 
 fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: &Expr) -> Expr {
@@ -231,10 +319,9 @@ fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: 
     let (best_cost, best) = res.unwrap();
     let bs = string_of_expr(&best);
     let gs = string_of_expr(goal);
-    // println!("{}", bs);
-    // println!("{}", gs);
-    assert_eq!(best_cost, egg::AstSize.cost_rec(&goal));
+    println!("found: '{}'", bs);
     assert_eq!(bs, gs);
+    assert_eq!(best_cost, egg::AstSize.cost_rec(&goal));
     // assert_eq!(egraph.lookup_expr(goal), Some(canonic_eclass));
 
     best
