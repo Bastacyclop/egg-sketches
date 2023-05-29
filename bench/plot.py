@@ -15,56 +15,52 @@ import pandas as pd
 import math
 from cycler import cycler
 import scipy.optimize as opt
+from functools import reduce
+from itertools import accumulate
 
 plots = [
-  ("guided-blocking", (4, 3)),
-  ("guided-parallel", (6, 3)),
-  ("unguided-blocking", (4, 3)),
-  ("unguided-parallel", (4, 3)),
+  "tile_1d_s",
+  "tile_1d_r",
+  "tile_1d",
+  "tile_2d_s",
+  "tile_2d_r",
+  "tile_2d",
+  "tile_3d_s",
+  "tile_3d_r",
+  "tile_3d",
 ]
 
-for (i, (name, figsize)) in enumerate(plots):
-    data = pd.read_csv(name + '.csv', sep=' ')
+data = pd.read_csv('bench/results.csv', skipinitialspace=True)
+print(data)
 
-    data['skit'] = list(zip(data.sketch, data.iteration))
-    data['index'] = [i for (i, _) in enumerate(zip(data.sketch, data.iteration))]
+plt.rc('axes', prop_cycle=
+       (cycler('color', ['#1E88E5', '#FFC107', '#004D40']) +
+        cycler('linestyle', ['-']) *
+        cycler('marker', ['.', '+', 'x'])))
 
-    # insert NaNs at discontinuities
-    discontinuities = list(set(data.sketch.values))
+def plotOne(i, name):
+    fig, ax = plt.subplots(figsize=(6, 3), tight_layout = {'pad': 0})
+    # ax.set_title(plots[i][0].replace('-', ' '))
+
+    
+    #data['x'] = list(accumulate(zip(data.sketch, data.iteration),
+    #    lambda acc, si: acc if si[1] == 0 else acc + 1,
+    #    initial=0))[1:]
     # print(data)
-    nans = pd.DataFrame({
-        "sketch": [s for s in discontinuities],
-        "iteration": [max(data[data["sketch"] == s].iteration.values) + 1 for s in discontinuities],
-        "index": [max(data[data["sketch"] == s].index.values) for s in discontinuities],
-        "nodes": [np.nan for s in discontinuities],
-        "classes": [np.nan for s in discontinuities],
-        "rules": [np.nan for s in discontinuities],
-        })
-    frame = pd.concat([data, nans]).sort_values(by=['index', 'iteration'])
-    # print(frame)
 
-    plt.rc('axes', prop_cycle=
-           (cycler('color', ['#1E88E5', '#FFC107', '#004D40']) +
-            cycler('linestyle', ['-']) *
-            cycler('marker', ['.', '+', 'x'])))
-    fig, ax = plt.subplots(figsize=figsize, tight_layout = {'pad': 0})
-
-    frame.plot("index", ["nodes", "classes", "rules"], ax=ax)
+    frame = data.query("search_name == @name")
+    print(frame)
+    print(frame.columns)
+    frame.plot('iteration_number', ["physical_memory", "virtual_memory"], ax=ax)
+    # "e_nodes", "e_classes", "applied_rules", "total_time"
 
     maxColor='grey'
-    maxY = max([max(data.nodes.values), max(data.classes.values), max(data.rules.values)])
-    maxYC = math.ceil(maxY / 1000) * 1000
-    (unitPrefixS, unitPrefixN) = ('M', 1000000) if (maxY > 1000000) or (name ==
-            "unguided-parallel") else ('K', 1000) 
-    prefixValue = lambda v: str(int(v / unitPrefixN)) + unitPrefixS
-    print("max Y: ", maxY, " ~ ", maxYC)
+    maxY = 8e9
+    print("max Y: ", maxY)
     # plot max size
-    if name != "unguided-parallel":
-        plt.axhline(y=maxYC, color=maxColor, linestyle='--')
-    if name == "guided-blocking":
-        trans = transforms.blended_transform_factory(
-            ax.get_yticklabels()[0].get_transform(), ax.transData)
-        ax.text(0, maxYC, prefixValue(maxYC), color=maxColor, transform=trans, ha='right', va='center')
+    ax.axhline(y=maxY, color=maxColor, linestyle='--')
+    ax.text(0, maxY, str(maxY / 1e9) + "Gb", color=maxColor, ha='right', va='center')
+    # transform=trans
 
     # curve fitting
     def curveFun(x, a, b, c):
@@ -73,35 +69,36 @@ for (i, (name, figsize)) in enumerate(plots):
         optimizedParameters, pcov = opt.curve_fit(curveFun, xs, ys, maxfev=50000)
         xsbis = np.append(xs, [max(xs) + 1])
         ax.plot(xsbis, curveFun(xsbis, *optimizedParameters), linestyle=':')
-    if name == "unguided-parallel":
-        plotCurve(data['iteration'].values, data['nodes'].values)
-        plotCurve(data['iteration'].values, data['classes'].values)
-        plotCurve(data['iteration'].values, data['rules'].values)
+    if name == "tile_3d":
+        plotCurve(data['iteration_number'].values, data['physical_memory'].values)
+        plotCurve(data['iteration_number'].values, data['virtual_memory'].values)
 
-    # plot sketch guides
-    guideColor='#5500d4ff'
-    periods = data[data.sketch.diff() != 0].index.values
-    plt.vlines(periods[1:], ymax=maxYC, ymin=0, color=guideColor, linestyle='--')
-    for (i, item) in enumerate(periods[1:]):
-        plt.text(y=0.90*maxYC, x=item+0.5, s='sketch', color=guideColor)
-        plt.text(y=0.80*maxYC, x=item+0.5, s='guide', color=guideColor)
-        plt.text(y=0.70*maxYC, x=item+0.5, s='n°'+str(i+1), color=guideColor)
+    # ax.yaxis.set_major_formatter(FuncFormatter(lambda n, _: prefixValue(n)))
 
-    plt.xlabel("iterations")
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda n, _: prefixValue(n)))
-    if name == "unguided-parallel":
-        plt.ylim((0, 4000000))
-        plt.xticks(np.arange(data.skit.size + 1), np.arange(data.skit.size + 1))
-    else:
-        plt.xticks(np.arange(data.skit.size), [i for (_, i) in data.skit.values])
-    ax.get_legend().remove()
-    plt.savefig(name + '.pgf')
-    plt.savefig(name + '.png')
+    #ax.set_xlim((0, 22))
+    ax.set_xlabel("iterations")
+    # plt.xticks(np.arange(data.skit.size), [i for (_, i) in data.skit.values])
 
-    if i == 0:
-        figleg = plt.figure(tight_layout = {'pad': 0}, figsize=(2, 1.5))
-        patches, _labels = ax.get_legend_handles_labels()
-        patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
-        figleg.legend(patches, ["e-nodes", "e-classes", "rules", "prediction"])
-        figleg.savefig("legend.pgf")
-        figleg.savefig("legend.png")
+    # if name != "tile_1d":
+    #    ax.get_legend().remove()
+    # else:
+    patches, _labels = ax.get_legend_handles_labels()
+    patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
+    ax.legend(patches, ["pmem", "vmem", "estimate"])
+    ax.set_yscale('log')
+    ax.set_xlim(data["iteration_number"].min(), data["iteration_number"].max() + 1)
+    ax.set_ylim(data["physical_memory"].min(), maxY * 1.5)
+
+    plt.savefig('bench/' + name + '.pgf')
+    plt.savefig('bench/' + name + '.png')
+
+for i, name in enumerate(plots):
+    plotOne(i, name)
+
+# if i == 0:
+#     figleg = plt.figure(tight_layout = {'pad': 0}, figsize=(2, 1.5))
+#     patches, _labels = ax.get_legend_handles_labels()
+#     patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
+#     figleg.legend(patches, ["e-nodes", "e-classes", "rules", "prediction"])
+#     figleg.savefig("legend.pgf")
+#     figleg.savefig("legend.png")

@@ -34,7 +34,7 @@ type Sketch = egg_sketches::Sketch<Lang>;
 pub fn common_rules() -> Vec<Rewrite> { vec![
     rewrite!("o-assoc1"; "(o (o ?f ?g) ?h)" => "(o ?f (o ?g ?h))"),
     rewrite!("o-assoc2"; "(o ?f (o ?g ?h))" => "(o (o ?f ?g) ?h)"),
-    rewrite!("map-fusion"; "(o (m ?n ?f) (m ?n ?g))" => "(m ?n (o ?f ?g))"),
+    // rewrite!("map-fusion"; "(o (m ?n ?f) (m ?n ?g))" => "(m ?n (o ?f ?g))"),
     rewrite!("map-fission"; "(m ?n (o ?f ?g))" =>  "(o (m ?n ?f) (m ?n ?g))"),
     // unused rules:
     // rewrite!("transpose-before-maps"; "(o T (m ?n1 (m ?n2 ?f)))" => "(o (m ?n1 (m ?n2 ?f)) T)"),
@@ -75,29 +75,18 @@ fn tile_2d() -> Vec<Expr> {
         "(m (* n1 32) (m (* n2 32) f))",
         // sketches for the splitted map nests we are looking for:
         &[
-            "(contains (m n1 (m 32 (m (* n2 32) f))))",
-            "(contains (m (* n1 32) (m n2 (m 32 f))))",
-            "(contains (m n1 (m 32 (contains (m n2 (m 32 f))))))",
+            "(contains (m n1 (m 32 (m n2 (m 32 f)))))",
         ],
         // the corresponding full programs that we expect to find:
         &[
-            "(o j (o (m n1 (m 32 (m (* n2 32) f))) (s 32)))",
-            "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 f))) (m (* n1 32) (s 32))))",
-            "(o j (o (m n1 (m 32 (o j (o (m n2 (m 32 f)) (s 32))))) (s 32)))",
+            "(o (o (o j (m n1 (m 32 j))) (o (m n1 (m 32 (m n2 (m 32 f)))) (m n1 (m 32 (s 32))))) (s 32))",
         ],
         // sketches for the tiled map nests we are looking for:       
         &[
-            "(contains (m n1 (m 32 (m (* n2 32) f))))",
-            "(contains (m (* n1 32) (m n2 (m 32 f))))",
-            "(contains (m n1 (m 32 (contains (m n2 (m 32 f))))))",
-            "(contains (m n1 (contains (m n2 (contains (m 32 (m 32 f)))))))",
+            "(contains (m n1 (m n2 (m 32 (m 32 f)))))",
         ],
         &[
-            "(o j (o (m n1 (m 32 (m (* n2 32) f))) (s 32)))",
-            "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 f))) (m (* n1 32) (s 32))))",
-            "(o j (o (m n1 (m 32 (o j (o (m n2 (m 32 f)) (s 32))))) (s 32)))",
-            "(o j (o (m n1 (o (o (o (o (m 32 j) T) (m n2 (m 32 (m 32 f)))) T) (m 32 (s 32)))) (s 32)))",
-            // "(o j (o (m n1 (o T (o j (o (m n2 (m 32 (m 32 f))) (o (s 32) T))))) (s 32)))",
+            "(o (o (o (o j (m n1 (m 32 j))) (m n1 T)) (o (m n1 (m n2 (m 32 (m 32 f)))) (m n1 T))) (o (m n1 (m 32 (s 32))) (s 32)))",
         ]
     )
 }
@@ -109,39 +98,65 @@ fn tile_3d() -> Vec<Expr> {
         "(m (* n1 32) (m (* n2 32) (m (* n3 32) f)))",
         // sketches for the splitted map nests we are looking for:
         &[
-            "(contains (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))))",
+            /* "(contains (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))))",
             "(contains (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))))",
             "(contains (m (* n1 32) (m (* n2 32) (m n3 (m 32 f)))))",
             "(contains (m n1 (m 32 (contains (m n2 (m 32 (m (* n3 32) f))))))))",
-            "(contains (m (* n1 32) (contains (m n2 (m 32 (contains (m n3 (m 32 f)))))))))",
-            "(contains (m n1 (m 32 (contains (m n2 (m 32 (contains (m n3 (m 32 f))))))))))",
+            "(contains (m (* n1 32) (contains (m n2 (m 32 (contains (m n3 (m 32 f)))))))))", */
+            "(contains (m n1 (m 32 (m n2 (m 32 (m n3 (m 32 f))))))))",
         ],
         // the corresponding full programs that we expect to find:
         &[
-            "(o (o j (m n1 (m 32 (m (* n2 32) (m (* n3 32) f))))) (s 32))",
+            /* "(o (o j (m n1 (m 32 (m (* n2 32) (m (* n3 32) f))))) (s 32))",
             "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))) (m (* n1 32) (s 32))))",
             "(o (m (* n1 32) (m (* n2 32) j)) (o (m (* n1 32) (m (* n2 32) (m n3 (m 32 f)))) (m (* n1 32) (m (* n2 32) (s 32)))))",
             "(o (o j (m n1 (m 32 (o j (o (m n2 (m 32 (m (* n3 32) f))) (s 32)))))) (s 32))",
-            "(m (* n1 32) (o j (o (m n2 (m 32 (o j (o (m n3 (m 32 f)) (s 32))))) (s 32))))",
-            "(o (o j (m n1 (m 32 (o j (o (m n2 (m 32 (o j (o (m n3 (m 32 f)) (s 32))))) (s 32)))))) (s 32))",
+            "(m (* n1 32) (o j (o (m n2 (m 32 (o j (o (m n3 (m 32 f)) (s 32))))) (s 32))))", */
+            // "(o (o j (m n1 (m 32 (o j (o (m n2 (m 32 (o j (o (m n3 (m 32 f)) (s 32))))) (s 32)))))) (s 32))",
+            "(o (m (* n1 32) (o (m (* n2 32) j) j)) (o (o j (o (m n1 (m 32 (m n2 (m 32 (m n3 (m 32 f)))))) (s 32))) (m (* n1 32) (o (m n2 (m 32 (s 32))) (s 32)))))"
         ],
         // sketches for the tiled map nests we are looking for:
         &[
-            "(contains (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))))",
+            /* "(contains (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))))",
             "(contains (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))))",
             "(contains (m (* n1 32) (m (* n2 32) (m n3 (m 32 f)))))",
             "(contains (m n1 (contains (m n2 (m 32 (m 32 (m (* n3 32) f))))))))",
-            "(contains (m (* n1 32) (contains (m n2 (contains (m n3 (m 32 (m 32 f)))))))))",
-            "(contains (m n1 (contains (m n2 (contains (m n3 (contains (m 32 (m 32 (m 32 f)))))))))))",
+            "(contains (m (* n1 32) (contains (m n2 (contains (m n3 (m 32 (m 32 f)))))))))", */
+            "(contains (m n1 (m n2 (m n3 (m 32 (m 32 (m 32 f))))))))",
         ],
         // the corresponding full programs that we expect to find:
         &[
-            "(o j (o (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))) (s 32)))",
+            /* "(o j (o (m n1 (m 32 (m (* n2 32) (m (* n3 32) f)))) (s 32)))",
             "(o (m (* n1 32) j) (o (m (* n1 32) (m n2 (m 32 (m (* n3 32) f)))) (m (* n1 32) (s 32))))",
             "(o (o (m (* n1 32) (m (* n2 32) j)) (m (* n1 32) (m (* n2 32) (m n3 (m 32 f))))) (m (* n1 32) (m (* n2 32) (s 32))))",
             "(o j (o (m n1 (o (m 32 j) (o (o T (m n2 (m 32 (m 32 (m (* n3 32) f))))) (o T (m 32 (s 32)))))) (s 32)))",
-            "(m (* n1 32) (o j (o (m n2 (o (o (o (m 32 j) T) (m n3 (m 32 (m 32 f)))) (o T (m 32 (s 32))))) (s 32))))",
-            "(o j (o (m n1 (o (o (o (m 32 j) T) (o (m n2 (o (m 32 (o (m 32 j) T)) (o (o T (o (m n3 (m 32 (m 32 (m 32 f)))) T)) (m 32 (o T (m 32 (s 32))))))) T)) (m 32 (s 32)))) (s 32)))",
+            "(m (* n1 32) (o j (o (m n2 (o (o (o (m 32 j) T) (m n3 (m 32 (m 32 f)))) (o T (m 32 (s 32))))) (s 32))))", */
+            // "(o j (o (m n1 (o (o (o (m 32 j) T) (o (m n2 (o (m 32 (o (m 32 j) T)) (o (o T (o (m n3 (m 32 (m 32 (m 32 f)))) T)) (m 32 (o T (m 32 (s 32))))))) T)) (m 32 (s 32)))) (s 32)))",
+            "(o (o (m (* n1 32) (o (m (* n2 32) j) j)) j) (o (o (m n1 (o T (m n2 (o (m 32 T) T)))) (o (m n1 (m n2 (m n3 (m 32 (m 32 (m 32 f)))))) (m n1 (m n2 T)))) (o (o (m n1 (o (m n2 (m 32 T)) T)) (s 32)) (m (* n1 32) (o (m n2 (m 32 (s 32))) (s 32))))))",
+        ],
+    )
+}
+
+#[rustfmt::skip]
+fn tile_4d() -> Vec<Expr> {
+    tile( "4d",
+        // 4 nested maps that we want to tile (split + reorder):
+        "(m (* n1 32) (m (* n2 32) (m (* n3 32) (m (* n4 32) f))))",
+        // sketches for the splitted map nests we are looking for:
+        &[
+            "(contains (m n1 (m 32 (m n2 (m 32 (m n3 (m 32 (m n4 (m 32 f)))))))))",
+        ],
+        // the corresponding full programs that we expect to find:
+        &[
+            "(o (m (* n1 32) (o (m (* n2 32) (o (m (* n3 32) j) j)) j)) (o (o j (o (m n1 (m 32 (m n2 (m 32 (m n3 (m 32 (m n4 (m 32 f)))))))) (s 32))) (m (* n1 32) (o (m n2 (m 32 (o (m n3 (m 32 (s 32))) (s 32)))) (s 32)))))",
+        ],
+        // sketches for the tiled map nests we are looking for:
+        &[
+            "(contains (m n1 (m n2 (m n3 (m n4 (m 32 (m 32 (m 32 (m 32 f))))))))))",
+        ],
+        // the corresponding full programs that we expect to find:
+        &[
+            "f", // ???
         ],
     )
 }
@@ -258,7 +273,7 @@ fn grow_egraph_until<S>(
     let runner = egg::Runner::default()
         .with_scheduler(egg::SimpleScheduler)
         .with_iter_limit(100)
-        .with_node_limit(10_000_000)
+        .with_node_limit(100_000_000)
         .with_time_limit(std::time::Duration::from_secs(5 * 60))
         .with_hook(move |runner| {
           let mut out_of_memory = false;
@@ -317,9 +332,9 @@ fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: 
 
     let res = eclass_extract_sketch(sketch, egg::AstSize, &egraph, canonic_eclass);
     let (best_cost, best) = res.unwrap();
-    let bs = string_of_expr(&best);
-    let gs = string_of_expr(goal);
-    println!("found: '{}'", bs);
+    let bs = string_of_expr(&best, true);
+    let gs = string_of_expr(goal, true);
+    println!("found: '{}'", string_of_expr(&best, false));
     assert_eq!(bs, gs);
     assert_eq!(best_cost, egg::AstSize.cost_rec(&goal));
     // assert_eq!(egraph.lookup_expr(goal), Some(canonic_eclass));
@@ -327,23 +342,23 @@ fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: 
     best
 }
 
-fn string_of_expr(e: &Expr) -> String {
+fn string_of_expr(e: &Expr, flatten_o: bool) -> String {
     let mut res = String::new();
-    string_of_expr_rec(e.as_ref(), e.as_ref().len() - 1, &mut res);
+    string_of_expr_rec(e.as_ref(), e.as_ref().len() - 1, flatten_o, &mut res);
     res
 }
 
-fn string_of_expr_rec(nodes: &[Lang], i: usize, acc: &mut String) {
+fn string_of_expr_rec(nodes: &[Lang], i: usize, flatten_o: bool, acc: &mut String) {
     use std::fmt::Write;
 
     let node = &nodes[i];
     let op = node.to_string();
 
-    if op == "o" {
+    if flatten_o && op == "o" {
         let cs = node.children();
-        string_of_expr_rec(nodes, usize::from(cs[0]), acc);
+        string_of_expr_rec(nodes, usize::from(cs[0]), flatten_o, acc);
         write!(acc, " o ").unwrap();
-        string_of_expr_rec(nodes, usize::from(cs[1]), acc);
+        string_of_expr_rec(nodes, usize::from(cs[1]), flatten_o, acc);
         return;
     }
 
@@ -355,7 +370,7 @@ fn string_of_expr_rec(nodes: &[Lang], i: usize, acc: &mut String) {
     write!(acc, "({}", op).unwrap();
     for child in node.children().iter().map(|i| usize::from(*i)) {
         write!(acc, " ").unwrap();
-        string_of_expr_rec(nodes, child, acc);
+        string_of_expr_rec(nodes, child, flatten_o, acc);
     }
     write!(acc, ")").unwrap();
 }
@@ -374,6 +389,8 @@ fn main() {
         // "split_3d" => split_3d(),
         "reorder_3d" => reorder_3d(),
         "tile_3d" => tile_3d(),
+        // split_4d / reorder_4d
+        "tile_4d" => tile_4d(),
         _ => panic!("unknown parameter")
     };
 }
