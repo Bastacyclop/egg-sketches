@@ -31,15 +31,21 @@ plots = [
 ]
 
 data = pd.read_csv('bench/results.csv', skipinitialspace=True)
-print(data)
+# data = data.astype({'iteration_number':'int', 'physical_memory':'int', 'virtual_memory':'int', 'e-nodes':'int', 'e-classes':'int', 'applied_rules':'int', 'total_time':'float', 'hook_time':'float', 'search_time':'float', 'apply_time':'float', 'rebuild_time':'float'})
+#print(data)
 
 plt.rc('axes', prop_cycle=
-       (cycler('color', ['#1E88E5', '#FFC107', '#004D40']) +
+       (cycler('color', ['#1E88E5']) + #, '#FFC107', '#004D40']) +
         cycler('linestyle', ['-']) *
-        cycler('marker', ['.', '+', 'x'])))
+        cycler('marker', ['.']))) #, '+', 'x'])))
 
 def plotOne(i, name):
-    fig, ax = plt.subplots(figsize=(6, 3), tight_layout = {'pad': 0})
+    print("-- processing '" + name + "' --")
+    frame = data.query("search_name == @name")
+
+    fig, ax = plt.subplots(tight_layout = {'pad': 0.3}, dpi=200)
+    fig.set_figwidth(max(1 + (frame["iteration_number"].max() / 2), 2))
+    fig.set_figheight(3)
     # ax.set_title(plots[i][0].replace('-', ' '))
 
     
@@ -48,49 +54,49 @@ def plotOne(i, name):
     #    initial=0))[1:]
     # print(data)
 
-    frame = data.query("search_name == @name")
     print(frame)
-    print(frame.columns)
-    frame.plot('iteration_number', ["physical_memory", "virtual_memory"], ax=ax)
-    # "e_nodes", "e_classes", "applied_rules", "total_time"
+    frame.plot('iteration_number', ["virtual_memory"], ax=ax)
+    # "physical_memory", "e-nodes", "e-classes", "applied_rules", "total_time"
 
-    maxColor='grey'
+    maxColor='red'
     maxY = 8e9
     print("max Y: ", maxY)
     # plot max size
     ax.axhline(y=maxY, color=maxColor, linestyle='--')
-    ax.text(0, maxY, str(maxY / 1e9) + "Gb", color=maxColor, ha='right', va='center')
+    prefixValue = lambda v: str(int(v / 1e9)) + "Gb"
+    ax.text(1, 10e9, prefixValue(maxY), color=maxColor, ha='right', va='bottom')
     # transform=trans
 
     # curve fitting
     def curveFun(x, a, b, c):
-        return a * np.exp(-b * x) + c
+        # return a * np.exp(-b * x) + c
+        return np.float64(a * np.exp(np.float128(b * x)) + c)
     def plotCurve(xs, ys):
         optimizedParameters, pcov = opt.curve_fit(curveFun, xs, ys, maxfev=50000)
         xsbis = np.append(xs, [max(xs) + 1])
         ax.plot(xsbis, curveFun(xsbis, *optimizedParameters), linestyle=':')
     if name == "tile_3d":
-        plotCurve(data['iteration_number'].values, data['physical_memory'].values)
-        plotCurve(data['iteration_number'].values, data['virtual_memory'].values)
-
-    # ax.yaxis.set_major_formatter(FuncFormatter(lambda n, _: prefixValue(n)))
+        plotCurve(frame['iteration_number'].values, frame['virtual_memory'].values)
 
     #ax.set_xlim((0, 22))
     ax.set_xlabel("iterations")
-    # plt.xticks(np.arange(data.skit.size), [i for (_, i) in data.skit.values])
-
-    # if name != "tile_1d":
-    #    ax.get_legend().remove()
-    # else:
-    patches, _labels = ax.get_legend_handles_labels()
-    patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
-    ax.legend(patches, ["pmem", "vmem", "estimate"])
+    # ax.set_xlim(data["iteration_number"].min(), data["iteration_number"].max() + 1)
+    ax.set_ylim(data["virtual_memory"].min(), maxY * 2.5)
     ax.set_yscale('log')
-    ax.set_xlim(data["iteration_number"].min(), data["iteration_number"].max() + 1)
-    ax.set_ylim(data["physical_memory"].min(), maxY * 1.5)
+    # ax.yaxis.set_major_formatter(FuncFormatter(lambda n, _: prefixValue(n)))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda n, _: str(int(n))))
+    plt.xticks(frame["iteration_number"])
+    
+    if name != "tile_3d":
+        ax.get_legend().remove()
+    else:
+        patches, _labels = ax.get_legend_handles_labels()
+        patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
+        ax.legend(patches, ["memory", "estimate"])
 
     plt.savefig('bench/' + name + '.pgf')
     plt.savefig('bench/' + name + '.png')
+    print("----")
 
 for i, name in enumerate(plots):
     plotOne(i, name)

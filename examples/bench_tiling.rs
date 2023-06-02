@@ -56,8 +56,15 @@ fn split_map() -> Vec<Rewrite> { vec![
     // rewrite!("mul-div-id"; "(/ (* ?n1 ?n2) ?n2)" => "?n1"),
 ] }
 
-fn tile_1d() -> Vec<Expr> {
-    tile( "1d",
+enum TilingSearch {
+    Split,
+    Reorder,
+    Tile,
+}
+use TilingSearch::*;
+
+fn tile_1d(ts: TilingSearch) -> Vec<Expr> {
+    tile( ts, "1d",
         // 1 nested map that we want to tile (split + reoder):
         "(m (* n1 32) f)",
         // sketches for the splitted map nests we are looking for:
@@ -69,8 +76,8 @@ fn tile_1d() -> Vec<Expr> {
     )
 }
 
-fn tile_2d() -> Vec<Expr> {
-    tile( "2d",
+fn tile_2d(ts: TilingSearch) -> Vec<Expr> {
+    tile( ts, "2d",
         // 2 nested maps that we want to tile (split + reorder):
         "(m (* n1 32) (m (* n2 32) f))",
         // sketches for the splitted map nests we are looking for:
@@ -92,8 +99,8 @@ fn tile_2d() -> Vec<Expr> {
 }
 
 #[rustfmt::skip]
-fn tile_3d() -> Vec<Expr> {
-    tile( "3d",
+fn tile_3d(ts: TilingSearch) -> Vec<Expr> {
+    tile( ts, "3d",
         // 3 nested maps that we want to tile (split + reorder):
         "(m (* n1 32) (m (* n2 32) (m (* n3 32) f)))",
         // sketches for the splitted map nests we are looking for:
@@ -138,8 +145,8 @@ fn tile_3d() -> Vec<Expr> {
 }
 
 #[rustfmt::skip]
-fn tile_4d() -> Vec<Expr> {
-    tile( "4d",
+fn tile_4d(ts: TilingSearch) -> Vec<Expr> {
+    tile(ts, "4d",
         // 4 nested maps that we want to tile (split + reorder):
         "(m (* n1 32) (m (* n2 32) (m (* n3 32) (m (* n4 32) f))))",
         // sketches for the splitted map nests we are looking for:
@@ -162,6 +169,7 @@ fn tile_4d() -> Vec<Expr> {
 }
 
 fn tile(
+    ts: TilingSearch,
     name: &str,
     start: &str,
     split_sketches: &[&str],
@@ -169,36 +177,53 @@ fn tile(
     reorder_sketches: &[&str],
     reorder_expected: &[&str],
 ) -> Vec<Expr> {
-    let mut split_rules = common_rules();
-    split_rules.extend(split_map().into_iter());
-    let ss: Vec<Sketch> = split_sketches.iter().map(|s| s.parse::<Sketch>().unwrap()).collect();
-    let se: Vec<Expr> = split_expected.iter().map(|&s| s.parse::<Expr>().unwrap()).collect();
+    let parse_expr = |s: &&str| {
+        let e: Expr = s.parse().unwrap();
+        println!("LaTeX Expr: {}", latex_of_expr(&e));
+        e
+    };
+    let parse_sketch = |s: &&str| {
+        let e: Sketch = s.parse().unwrap();
+        println!("LaTeX Sketch: {}", latex_of_expr(&e));
+        e
+    };
 
-    let mut reorder_rules = common_rules();
-    reorder_rules.extend(transpose_maps().into_iter());
-    let rs: Vec<Sketch> = reorder_sketches.iter().map(|&s| s.parse::<Sketch>().unwrap()).collect();
-    let re: Vec<Expr> = reorder_expected.iter().map(|&s| s.parse::<Expr>().unwrap()).collect();
+    let s = &[parse_expr(&start)];
 
-    let mut tile_rules = common_rules();
-    tile_rules.extend(split_map().into_iter());
-    tile_rules.extend(transpose_maps().into_iter());
-
-    let split_exprs = reach_sketches_from_exprs(
-        &format!("tile_{}_s", name),
-        &[start.parse().unwrap()],
-        &split_rules[..], &ss[..], &se[..],
-    );
-    reach_sketches_from_exprs(
-        &format!("tile_{}_r", name),
-        &split_exprs[..],
-        &reorder_rules[..], &rs[..], &re[..],
-    );
-    reach_sketches_from_exprs(
-        &format!("tile_{}", name),
-        &[start.parse().unwrap()],
-        &tile_rules[..], &rs[..], &[],
-        // may find different programs: &re[..],
-    )
+    match ts {
+        Split => {
+            let mut split_rules = common_rules();
+            split_rules.extend(split_map().into_iter());
+            let ss: Vec<Sketch> = split_sketches.iter().map(parse_sketch).collect();
+            let se: Vec<Expr> = split_expected.iter().map(parse_expr).collect();
+            reach_sketches_from_exprs(
+                &format!("tile_{}_s", name), s,
+                &split_rules[..], &ss[..], &se[..],
+            )
+        }
+        Reorder => {
+            let mut reorder_rules = common_rules();
+            reorder_rules.extend(transpose_maps().into_iter());
+            let rs: Vec<Sketch> = reorder_sketches.iter().map(parse_sketch).collect();
+            let se: Vec<Expr> = split_expected.iter().map(parse_expr).collect();
+            let re: Vec<Expr> = reorder_expected.iter().map(parse_expr).collect();
+            reach_sketches_from_exprs(
+                &format!("tile_{}_r", name), &se[..],
+                &reorder_rules[..], &rs[..], &re[..],
+            )
+        }
+        Tile => {
+            let mut tile_rules = common_rules();
+            tile_rules.extend(split_map().into_iter());
+            tile_rules.extend(transpose_maps().into_iter());
+            let rs: Vec<Sketch> = reorder_sketches.iter().map(parse_sketch).collect();
+            reach_sketches_from_exprs(
+                &format!("tile_{}", name), s,
+                &tile_rules[..], &rs[..], &[],
+                // may find different programs: &re[..],
+            )
+        }
+    }
 }
 
 #[rustfmt::skip]
@@ -375,22 +400,72 @@ fn string_of_expr_rec(nodes: &[Lang], i: usize, flatten_o: bool, acc: &mut Strin
     write!(acc, ")").unwrap();
 }
 
+
+fn latex_of_expr<L: Language + std::fmt::Display>(e: &egg::RecExpr<L>) -> String {
+    let mut res = String::new();
+    latex_of_expr_rec(e.as_ref(), e.as_ref().len() - 1, &mut res);
+    res
+}
+
+fn latex_of_expr_rec<L: Language + std::fmt::Display>(nodes: &[L], i: usize, acc: &mut String) {
+    use std::fmt::Write;
+
+    let node = &nodes[i];
+    let op = node.to_string();
+
+    let (is_infix, parenthesis, expanded_op) = match op.as_str() {
+        "contains" => (false, true, "contains"),
+        "o" => (true, false, "\\circ"),
+        "*" => (true, true, "\\times"),
+        "m" => (false, true, "map"),
+        "s" => (false, true, "split"),
+        "j" => (false, false, "join"),
+        "T" => (false, false, "transpose"),
+        op => (false, !node.is_leaf(), op),
+    };
+
+    if parenthesis { write!(acc, "(").unwrap() };
+    let cs = node.children();
+    if is_infix {
+        latex_of_expr_rec(nodes, usize::from(cs[0]), acc);
+        write!(acc, " {} ", expanded_op).unwrap();
+        latex_of_expr_rec(nodes, usize::from(cs[1]), acc);
+    } else {
+        write!(acc, "{}", expanded_op).unwrap();
+        for child in cs.iter().map(|i| usize::from(*i)) {
+            write!(acc, "~").unwrap();
+            latex_of_expr_rec(nodes, child, acc);
+        }
+    }
+    if parenthesis { write!(acc, ")").unwrap() };
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     assert_eq!(args.len(), 2);
 
-    match args[1].as_str() {
+    let arg = args[1].as_str();
+    println!("--- {}", arg);
+    let pieces: Vec<_> = arg.split('_').collect();
+    let search_modifier = pieces.get(2).cloned().unwrap_or("");
+    let ts = match search_modifier {
+        "" => TilingSearch::Tile,
+        "s" => TilingSearch::Split,
+        "r" => TilingSearch::Reorder,
+        _ => panic!("unknown search modifier")
+    };
+    match pieces[0..2] {
         // "split_1d" => split_1d(),
         // "reorder_1d" => reorder_1d(),
-        "tile_1d" => tile_1d(),
+        ["tile", "1d"] => tile_1d(ts),
         // "split_2d" => split_2d(),
         // "reorder_2d" => reorder_2d(),
-        "tile_2d" => tile_2d(),
+        ["tile", "2d"] => tile_2d(ts),
         // "split_3d" => split_3d(),
-        "reorder_3d" => reorder_3d(),
-        "tile_3d" => tile_3d(),
+        ["reorder", "3d"] => reorder_3d(),
+        ["tile", "3d"] => tile_3d(ts),
         // split_4d / reorder_4d
-        "tile_4d" => tile_4d(),
+        ["tile", "4d"] => tile_4d(ts),
         _ => panic!("unknown parameter")
     };
 }

@@ -37,5 +37,5 @@ Please cite our paper if you use this repository for your research!
 
 ```sh
 ./bench/tiling.sh
-python3 ./bench/plot.py
+./bench/plot.sh
 ```
