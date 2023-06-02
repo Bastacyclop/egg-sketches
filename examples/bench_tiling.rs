@@ -194,6 +194,7 @@ fn tile(
         Split => {
             let mut split_rules = common_rules();
             split_rules.extend(split_map().into_iter());
+            split_rules.extend(transpose_maps().into_iter()); // <<< unused
             let ss: Vec<Sketch> = split_sketches.iter().map(parse_sketch).collect();
             let se: Vec<Expr> = split_expected.iter().map(parse_expr).collect();
             reach_sketches_from_exprs(
@@ -203,6 +204,7 @@ fn tile(
         }
         Reorder => {
             let mut reorder_rules = common_rules();
+            reorder_rules.extend(split_map().into_iter()); // <<< unused
             reorder_rules.extend(transpose_maps().into_iter());
             let rs: Vec<Sketch> = reorder_sketches.iter().map(parse_sketch).collect();
             let se: Vec<Expr> = split_expected.iter().map(parse_expr).collect();
@@ -336,7 +338,11 @@ fn grow_egraph_until<S>(
 fn iteration_stats(search_name: &str, it: &egg::Iteration<()>, it_number: usize) -> bool {
     let memory = memory_stats().expect("could not get current memory usage");
     let out_of_memory = memory.virtual_mem > 8_000_000_000;
-    eprintln!("{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+    let found = match &it.stop_reason {
+        Some(egg::StopReason::Other(s)) => s == "Satisfied",
+        _ => false,
+    };
+    eprintln!("{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
         search_name,
         it_number,
         memory.physical_mem,
@@ -348,7 +354,8 @@ fn iteration_stats(search_name: &str, it: &egg::Iteration<()>, it_number: usize)
         it.hook_time,
         it.search_time,
         it.apply_time,
-        it.rebuild_time);
+        it.rebuild_time,
+        found);
     out_of_memory
 }
 
