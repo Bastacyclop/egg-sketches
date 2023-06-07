@@ -17,6 +17,8 @@ fxhash = "0.2.1"
 hashbrown = "0.12.1"
 indexmap = "1.8.1"
 
-[dev-dependencies]
-# ordered-float = "3.0.0"
+# TODO: dev dependency
 memory-stats = "1.0.0"
+
+[dev-dependencies]
+ordered-float = "3.0.0"

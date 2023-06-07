@@ -22,6 +22,7 @@ mod analysis;
 mod extract;
 mod hashcons;
 mod sketch;
+pub mod util; // TODO: dev dependency
 
 pub use {
     extract::eclass_extract_sketch,

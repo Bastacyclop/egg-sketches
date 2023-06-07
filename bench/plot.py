@@ -30,19 +30,9 @@ import scipy.optimize as opt
 from functools import reduce
 from itertools import accumulate
 
-plots = [
-  "tile_1d_s",
-  "tile_1d_r",
-  "tile_1d",
-  "tile_2d_s",
-  "tile_2d_r",
-  "tile_2d",
-  "tile_3d_s",
-  "tile_3d_r",
-  "tile_3d",
-]
-
-data = pd.read_csv('bench/results.csv', skipinitialspace=True)
+# TODO: argument
+data = pd.read_csv('bench/math/results.csv', skipinitialspace=True)
+# data = pd.read_csv('bench/results.csv', skipinitialspace=True)
 data = data.astype({'iteration_number':'int', 'physical_memory':'int', 'virtual_memory':'int', 'e-nodes':'int', 'e-classes':'int', 'applied_rules':'int', 'total_time':'float', 'hook_time':'float', 'search_time':'float', 'apply_time':'float', 'rebuild_time':'float', 'found':'bool'})
 #print(data)
 
@@ -58,7 +48,6 @@ def plotOne(i, name):
     fig, ax = plt.subplots(tight_layout = {'pad': 0.3}, dpi=200)
     fig.set_figwidth(max(1 + (frame["iteration_number"].max() / 2), 2))
     fig.set_figheight(3)
-    # ax.set_title(plots[i][0].replace('-', ' '))
 
     
     #data['x'] = list(accumulate(zip(data.sketch, data.iteration),
@@ -116,7 +105,7 @@ def plotOne(i, name):
         else:
             return str(int(n))
     ax.xaxis.set_major_formatter(FuncFormatter(xformat))
-    plt.xticks(range(last_iteration + 1))
+    plt.xticks(range(1, last_iteration + 1))
     if not_found:
         plt.gca().get_xticklabels()[-1].set_color('red')
     else:

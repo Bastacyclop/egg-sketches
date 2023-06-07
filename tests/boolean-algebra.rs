@@ -143,35 +143,7 @@ pub fn rules() -> Vec<Rewrite> {
   rules
 }
 
-macro_rules! test_fn_crash {
-    (
-        $(#[$meta:meta])*
-        $name:ident, $rules:expr,
-        $(runner = $runner:expr,)?
-        $start:literal
-        =>
-        $($goal:literal),+ $(,)?
-    ) => {
-
-    $(#[$meta])*
-    #[test]
-    pub fn $name() {
-        // NOTE this is no longer needed, we always check
-        let check = true;
-        $crate::test::test_runner(
-            stringify!($name),
-            None $(.or(Some($runner)))?,
-            &$rules,
-            $start.parse().unwrap(),
-            &[$( $goal.parse().unwrap() ),+],
-            None,
-            check,
-        );
-        panic!("hello");
-    }};
-}
-
-test_fn_crash! {
+test_fn! {
   sdiff_sup1, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
@@ -179,7 +151,7 @@ test_fn_crash! {
       .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcup (sqcap y (sqcup x z)) (sqcap (setminus y x) (setminus y z)))" => "(y)" }
-test_fn_crash! {
+test_fn! {
   subgoal1, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
@@ -187,7 +159,7 @@ test_fn_crash! {
       .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcup (sqcap y (sqcup x z)) (sqcap (setminus y x) (setminus y z)))" => "(sqcap (sqcap y (sqcup (sqcup x z) (setminus y x))) (sqcap y (sqcup (sqcup x z) (setminus y z))))" }
-test_fn_crash! {
+test_fn! {
   subgoal2, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
@@ -195,7 +167,7 @@ test_fn_crash! {
       .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup (sqcup x z) (setminus y x))) (sqcap y (sqcup (sqcup x z) (setminus y z))))" => "(sqcap (sqcap y (sqcup x (sqcap y (sqcup z (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" }
-test_fn_crash! {
+test_fn! {
   subgoal3, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
@@ -203,7 +175,7 @@ test_fn_crash! {
       .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup x (sqcap y (sqcup z (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" => "(sqcap (sqcap y (sqcup z (sqcap y (sqcup x (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" }
-test_fn_crash! {
+test_fn! {
   subgoal4, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
@@ -211,7 +183,7 @@ test_fn_crash! {
       .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup z (sqcap y (sqcup x (setminus y x))))) (sqcap y (sqcup x (sqcap y (sqcup z (setminus y z))))))" => "(sqcap (sqcap y (sqcup z y)) (sqcap y (sqcup x y)))" }
-test_fn_crash! {
+test_fn! {
   subgoal5, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
@@ -219,7 +191,7 @@ test_fn_crash! {
       .with_scheduler(SimpleScheduler)
       .with_node_limit(200_000),
     "(sqcap (sqcap y (sqcup z y)) (sqcap y (sqcup x y)))" => "(sqcap (sqcup y (sqcap y z)) (sqcup y (sqcap y x)))" }
-test_fn_crash! {
+test_fn! {
   subgoal6, rules(),
   runner = Runner::default()
       .with_time_limit(std::time::Duration::from_secs(30))
