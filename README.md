@@ -32,3 +32,10 @@ Please cite our paper if you use this repository for your research!
 }
 </pre></code>
 </details>
+
+## Running benchmarks
+
+```sh
+./bench/tiling.sh
+./bench/plot.sh
+```
