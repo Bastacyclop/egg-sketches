@@ -266,7 +266,8 @@ pub fn binomial4_sketches(sub_search: Option<usize>) {
     let sketches: &[Sketch] = &[
         "(contains (* (pow (+ x y) 2) (pow (+ x y) 2)))".parse().unwrap(),
         "(contains (* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2)))))".parse().unwrap(),
-        "(contains (+ (pow x 4) (+ ? (+ ? (+ ? (pow y 4))))))".parse().unwrap(),
+        // misguide:
+        //"(contains (+ (pow x 4) (+ ? (+ ? (+ ? (pow y 4))))))".parse().unwrap(),
         "(contains (+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4))))))".parse().unwrap(),
 
     ];
@@ -276,7 +277,7 @@ pub fn binomial4_sketches(sub_search: Option<usize>) {
     let goals: &[Expr] = &[
         "(* (pow (+ x y) 2) (pow (+ x y) 2))".parse().unwrap(),
         "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))".parse().unwrap(),
-        "(+ (pow x 4) (+ (* (* (pow x 3) 2) y) (+ (* (* y (+ (* 2 x) y)) (* x (+ x (* 2 y)))) (+ (* (* x (+ x (* 2 y))) (pow y 2)) (pow y 4)))))".parse().unwrap(),
+        //"(+ (pow x 4) (+ (* (* (pow x 3) 2) y) (+ (* (* y (+ (* 2 x) y)) (* x (+ x (* 2 y)))) (+ (* (* x (+ x (* 2 y))) (pow y 2)) (pow y 4)))))".parse().unwrap(),
         // "(+ (pow x 4) (+ (* (pow x 2) (* y (+ (* 2 x) y))) (+ (* (* y (+ (* 2 x) y)) (* x (+ x (* 2 y)))) (+ (* (* (* 2 (* x y)) y) y) (pow y 4)))))".parse().unwrap(),
         "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))".parse().unwrap(),
     ];
