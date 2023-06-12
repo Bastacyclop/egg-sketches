@@ -84,14 +84,14 @@ fn tile_2d(ts: TilingSearch) -> Vec<Expr> {
         ],
         // the corresponding full programs that we expect to find:
         &[
-            "(o (o (o j (m n1 (m 32 j))) (o (m n1 (m 32 (m n2 (m 32 f)))) (m n1 (m 32 (s 32))))) (s 32))",
+            "(o (o (o (m (* n1 32) j) j) (o (m n1 (m 32 (m n2 (m 32 f)))) (m n1 (m 32 (s 32))))) (s 32))",
         ],
         // sketches for the tiled map nests we are looking for:       
         &[
             "(contains (m n1 (m n2 (m 32 (m 32 f)))))",
         ],
         &[
-            "(o (o (o (o j (m (* n1 32) j)) (m n1 T)) (o (m n1 (m n2 (m 32 (m 32 f)))) (m n1 T))) (o (m n1 (m 32 (s 32))) (s 32)))",
+            "(o (o (o (o (m (* n1 32) j) j) (m n1 T)) (o (m n1 (m n2 (m 32 (m 32 f)))) (m n1 T))) (o (m n1 (m 32 (s 32))) (s 32)))",
         ]
     )
 }
@@ -273,9 +273,8 @@ fn reach_sketches_from_exprs(
     let egraph = grow_egraph_until(search_name, egraph, rules, move |r| {
         let cano_eclass = r.egraph.find(eclass);
         sketches_hook.iter().all(|s| {
-            eclass_extract_sketch(s, egg::AstSize, &r.egraph, cano_eclass).is_some()
-            // FIXME:
-            // eclass_satisfies_sketch(s, &r.egraph, cano_eclass)
+            // eclass_extract_sketch(s, egg::AstSize, &r.egraph, cano_eclass).is_some()
+            eclass_satisfies_sketch(s, &r.egraph, cano_eclass)
         })
     });
     

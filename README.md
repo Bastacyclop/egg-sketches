@@ -37,5 +37,6 @@ Please cite our paper if you use this repository for your research!
 
 ```sh
 ./bench/tiling.sh
+./bench/math.sh
 ./bench/plot.sh
 ```

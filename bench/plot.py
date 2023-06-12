@@ -29,10 +29,10 @@ from cycler import cycler
 import scipy.optimize as opt
 from functools import reduce
 from itertools import accumulate
+import sys
 
-# TODO: argument
-data = pd.read_csv('bench/math/results.csv', skipinitialspace=True)
-# data = pd.read_csv('bench/results.csv', skipinitialspace=True)
+workdir = sys.argv[1]
+data = pd.read_csv(workdir + "/results.csv", skipinitialspace=True)
 data = data.astype({'iteration_number':'int', 'physical_memory':'int', 'virtual_memory':'int', 'e-nodes':'int', 'e-classes':'int', 'applied_rules':'int', 'total_time':'float', 'hook_time':'float', 'search_time':'float', 'apply_time':'float', 'rebuild_time':'float', 'found':'bool'})
 #print(data)
 
@@ -118,8 +118,8 @@ def plotOne(i, name):
         patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
         ax.legend(patches, ["memory", "estimate"])
 
-    plt.savefig('bench/' + name + '.pgf')
-    plt.savefig('bench/' + name + '.png')
+    plt.savefig(workdir + '/' + name + '.pgf')
+    plt.savefig(workdir + '/' + name + '.png')
     print("----")
 
 for i, name in enumerate(data['search_name'].unique()):

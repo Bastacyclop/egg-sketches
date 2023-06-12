@@ -37,7 +37,8 @@ fn satisfies_sketch_rec<L: Language, A: Analysis<L>>(
     };
 
     let result = match &s_nodes[usize::from(s_index)] {
-        SketchNode::Any => egraph.classes().map(|c| c.id).collect(),
+        SketchNode::Any =>
+            egraph.classes().map(|c| c.id).collect(),
         SketchNode::Node(node) => {
             let children_matches = node
                 .children()

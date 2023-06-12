@@ -1,6 +1,6 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
-use egg_sketches::{eclass_extract_sketch};
+use egg_sketches::{eclass_extract_sketch, eclass_satisfies_sketch};
 use egg_sketches::util::grow_egraph_until;
 //use egg_sketches::sketch_guided_search;
 
@@ -133,15 +133,15 @@ pub fn find_sketch(search_name: &str, sketch: &egg_sketches::Sketch<L>, start : 
     let sketch_clone = sketch.clone();
     let egraph = grow_egraph_until(search_name, graph, rewrites,
         move |runner :  &mut Runner<Lang, ConstantFold>| {
-        // use bool
+/*
         if let Some(rhs_id) = eclass_extract_sketch(&sketch_clone, egg::AstSize, &runner.egraph, lhs_id){
             true
         } else {
             false
-        }
+        } */
+        eclass_satisfies_sketch(&sketch_clone, &runner.egraph, lhs_id)
     });
     let mut egraph = egraph.without_explanation_length_optimization();
-    //FIXME: we're computing this twice, once in the hook and once here.
     let op_rhs = eclass_extract_sketch(&sketch.clone(), egg::AstSize, &egraph, lhs_id); 
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
