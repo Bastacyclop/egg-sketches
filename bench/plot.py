@@ -58,14 +58,6 @@ def plotOne(i, name):
     print(frame)
     frame.plot('iteration_number', ["virtual_memory"], ax=ax)
     # "physical_memory", "e-nodes", "e-classes", "applied_rules", "total_time"
-
-    maxColor='red'
-    maxY = 8e9
-    print("max Y: ", maxY)
-    # plot max size
-    ax.axhline(y=maxY, color=maxColor, linestyle='--')
-    prefixValue = lambda v: str(int(v / 1e9)) + "Gb"
-    ax.text(1, 10e9, prefixValue(maxY), color=maxColor, ha='right', va='bottom')
     found_in_frame = frame.loc[frame['found'] == True]
     #for _, found_row in found_in_frame.iterrows():
     #    ax.text(found_row['iteration_number'], found_row['virtual_memory'], "✔", color="green", ha='right', va='bottom')
@@ -91,6 +83,14 @@ def plotOne(i, name):
         plotCurve(frame['iteration_number'].values, frame['virtual_memory'].values)
         it_symbol = "✘"
         last_iteration += 1
+
+    # plot max size
+    maxColor='red'
+    maxY = 8e9
+    print("max Y: ", maxY)
+    ax.axhline(y=maxY, color=maxColor, linestyle='--')
+    prefixValue = lambda v: str(int(v / 1e9)) + "Gb"
+    ax.text(1, 10e9, prefixValue(maxY), color=maxColor, ha='left', va='bottom')
 
     #ax.set_xlim((0, 22))
     ax.set_xlabel("iterations")
