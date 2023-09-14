@@ -1,3 +1,4 @@
+use crate::*;
 use egg::*;
 use memory_stats::memory_stats;
 
@@ -74,4 +75,33 @@ fn iteration_stats(search_name: &str, it: &egg::Iteration<()>, it_number: usize)
       it.rebuild_time,
       found);
   out_of_memory
+}
+
+pub fn comparing_eclass_extract_sketch<L, A, CF>(
+  s: &Sketch<L>,
+  mut cost_f1: CF,
+  mut cost_f2: CF,
+  egraph: &EGraph<L, A>,
+  id: Id,
+) -> Option<(CF::Cost, RecExpr<L>)>
+where
+  L: Language,
+  A: Analysis<L>,
+  CF: CostFunction<L>,
+  CF::Cost: 'static + Ord,
+{
+  use std::time::Instant;
+  let t1 = Instant::now();
+  let res1 = eclass_extract_sketch(s, cost_f1, egraph, id);
+  let t2 = Instant::now();
+  let res2 = recursive_extract::eclass_extract_sketch(s, cost_f2, egraph, id);
+  let t3 = Instant::now();
+  assert_eq!(res1.is_some(), res2.is_some());
+  if let (Some((c1, _)), Some((c2, _))) = (&res1, &res2) {
+    assert_eq!(c1, c2);
+  };
+  println!("e-class analysis extraction took: {:?}", t2.duration_since(t1));
+  println!("recursive descent extraction took: {:?}", t3.duration_since(t2));
+  println!("");
+  return res1;
 }

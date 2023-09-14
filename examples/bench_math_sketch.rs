@@ -142,7 +142,8 @@ pub fn find_sketch(search_name: &str, sketch: &egg_sketches::Sketch<L>, start : 
         eclass_satisfies_sketch(&sketch_clone, &runner.egraph, lhs_id)
     });
     let mut egraph = egraph.without_explanation_length_optimization();
-    let op_rhs = eclass_extract_sketch(&sketch.clone(), egg::AstSize, &egraph, lhs_id); 
+    // BEFORE: eclass_extract_sketch
+    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id); 
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
             & rhs_expr);

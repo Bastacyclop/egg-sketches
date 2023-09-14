@@ -389,9 +389,9 @@ where
     }
 }
 
-pub struct ExtractAnalysis<'a, L, CF> {
-    exprs: &'a mut ExprHashCons<L>,
-    cost_f: &'a mut CF,
+pub(crate) struct ExtractAnalysis<'a, L, CF> {
+    pub(crate) exprs: &'a mut ExprHashCons<L>,
+    pub(crate) cost_f: &'a mut CF,
 }
 
 impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractAnalysis<'a, L, CF>
