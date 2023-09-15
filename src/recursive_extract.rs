@@ -99,15 +99,14 @@ where
 
       let eclass = &egraph[id];
       let mut candidates = Vec::new();
+      candidates.extend(extract_rec(id, s_nodes, *sid, cost_f, egraph, exprs, extracted, memo));
 
       for enode in &eclass.nodes {
         let children_matching: Vec<_> = enode
           .children()
           .iter()
           .flat_map(|&c| {
-            let data_rec = extract_rec(c, s_nodes, s_index, cost_f, egraph, exprs, extracted, memo);
-            let data_base = extract_rec(c, s_nodes, *sid, cost_f, egraph, exprs, extracted, memo);
-            [data_rec, data_base].into_iter().flatten().map(move |x| (c, x))
+            extract_rec(c, s_nodes, s_index, cost_f, egraph, exprs, extracted, memo).map(move |x| (c, x))
           })
           .collect();
         let children_any: Vec<_> = enode
