@@ -467,7 +467,7 @@ mod tests {
         assert!(sat2.contains(&egraph.find(b)));
         assert!(!sat2.contains(&c));
 
-        let (best_cost, best_expr) = eclass_extract_sketch(&sketch, AstSize, &egraph, a).unwrap();
+        let (best_cost, best_expr) = crate::util::comparing_eclass_extract_sketch(&sketch, AstSize, AstSize, &egraph, a).unwrap();
         assert_eq!(best_cost, 4);
         assert_eq!(best_expr, a_expr);
     }

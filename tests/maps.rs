@@ -188,7 +188,7 @@ fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: 
     let canonic_eclass = egraph.find(eclass);
     assert_eq!(egraph.lookup_expr(goal), Some(canonic_eclass));
 
-    let res = eclass_extract_sketch(sketch, egg::AstSize, &egraph, canonic_eclass);
+    let res = egg_sketches::util::comparing_eclass_extract_sketch(sketch, egg::AstSize, egg::AstSize, &egraph, canonic_eclass);
     let (best_cost, best) = res.unwrap();
     let bs = string_of_expr(&best);
     let gs = string_of_expr(goal);

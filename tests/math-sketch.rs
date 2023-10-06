@@ -84,6 +84,7 @@ impl Analysis<Lang> for ConstantFold {
     }
 }
 
+#[allow(dead_code)]
 fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = v.parse().unwrap();
     let w = w.parse().unwrap();
@@ -97,11 +98,13 @@ fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst
     }
 }
 
+#[allow(dead_code)]
 fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| egraph[subst[var]].data.is_some()
 }
 
+#[allow(dead_code)]
 fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| {
@@ -134,14 +137,14 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
     let sketch_clone = sketch.clone();
     let hook = move |runner :  &mut Runner<Lang, ConstantFold>| {
         // use bool
-        if let Some(rhs_id) = eclass_extract_sketch(&sketch_clone, egg::AstSize, &runner.egraph, lhs_id){
+        if let Some(_rhs_id) = egg_sketches::util::comparing_eclass_extract_sketch(&sketch_clone, egg::AstSize, egg::AstSize, &runner.egraph, lhs_id){
             // panic!("same equivalence class".to_string());
             Result::Err("now in same equivalence class".to_string())
         } else {
             Result::Ok(())
         }
     };
-    let mut runner : Runner<L, N> = Runner::default()
+    let runner : Runner<L, N> = Runner::default()
       .with_node_limit(node_limit)
       .with_time_limit(time_limit)
       .with_iter_limit(iter_limit)
@@ -151,11 +154,11 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
       .run(rewrites);
     let mut egraph = runner.egraph.without_explanation_length_optimization();
     //FIXME: we're computing this twice, once in the hook and once here.
-    let op_rhs = eclass_extract_sketch(&sketch.clone(), egg::AstSize, &egraph, lhs_id); 
+    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id); 
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
             & rhs_expr);
-        let flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
+        let _flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
         return Result::Ok((rhs_expr, ()))
     } else {
         return Result::Err("sketch not found".to_string())
@@ -169,7 +172,7 @@ pub fn sketch_guided_search( sketches: &[egg_sketches::Sketch<L>], start: &RecEx
         let mut cur : RecExpr<L> = start.clone();
         for sketch in sketches {
             let result = find_sketch(sketch, &cur, rewrites, iter_limit, node_limit, time_limit);
-            if let Ok((expr,S)) = result {
+            if let Ok((expr,_s)) = result {
                 cur = expr.clone();
                 res.push((expr,()));
             }
@@ -387,35 +390,6 @@ pub fn binomial4_sketches() {
       //println!("{} == {}", bs, gs);
       assert_eq!(bs, gs);
     }
-}
-
-
-fn grow_egraph(egraph: EGraph, node_limit: usize, rules: &[Rewrite]) -> EGraph {
-    let runner = egg::Runner::default()
-        //.with_scheduler(egg::SimpleScheduler)
-        .with_iter_limit(120)
-        .with_node_limit(node_limit)
-        .with_time_limit(std::time::Duration::from_secs(30))
-        .with_egraph(egraph)
-        .run(&rules[..]);
-    runner.print_report();
-    runner.egraph
-}
-
-fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: &Expr) -> Expr {
-    let canonic_eclass = egraph.find(eclass);
-    assert_eq!(egraph.lookup_expr(goal), Some(canonic_eclass));
-
-    let res = eclass_extract_sketch(sketch, egg::AstSize, &egraph, canonic_eclass);
-    let (best_cost, best) = res.unwrap();
-    let bs = string_of_expr(&best);
-    let gs = string_of_expr(goal);
-    println!("{}", bs);
-    println!("{}", gs);
-    assert_eq!(best_cost, egg::AstSize.cost_rec(&goal));
-    assert_eq!(bs, gs);
-
-    best
 }
 
 fn string_of_expr(e: &Expr) -> String {

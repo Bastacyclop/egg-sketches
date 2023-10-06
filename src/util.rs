@@ -1,5 +1,4 @@
 use crate::*;
-use egg::*;
 use memory_stats::memory_stats;
 
 pub fn grow_egraph_until<L, A, S>(
@@ -79,8 +78,8 @@ fn iteration_stats(search_name: &str, it: &egg::Iteration<()>, it_number: usize)
 
 pub fn comparing_eclass_extract_sketch<L, A, CF>(
   s: &Sketch<L>,
-  mut cost_f1: CF,
-  mut cost_f2: CF,
+  cost_f1: CF,
+  cost_f2: CF,
   egraph: &EGraph<L, A>,
   id: Id,
 ) -> Option<(CF::Cost, RecExpr<L>)>

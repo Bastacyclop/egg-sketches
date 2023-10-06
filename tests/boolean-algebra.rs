@@ -17,8 +17,8 @@ define_language! {
 pub type EGraph = egg::EGraph<Lang, ConstantFold>;
 pub type Rewrite = egg::Rewrite<Lang, ConstantFold>;
 pub type Constant = NotNan<f64>;
-type Expr = egg::RecExpr<Lang>;
-type Sketch = egg_sketches::Sketch<Lang>;
+// type Expr = egg::RecExpr<Lang>;
+// type Sketch = egg_sketches::Sketch<Lang>;
 
 // You could use egg::AstSize, but this is useful for debugging, since
 // it will really try to get rid of the Diff operator
@@ -69,14 +69,14 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
     let sketch_clone = sketch.clone();
     let hook = move |runner :  &mut Runner<Lang, ConstantFold>| {
         // use bool
-        if let Some(rhs_id) = eclass_extract_sketch(&sketch_clone, egg::AstSize, &runner.egraph, lhs_id){
+        if let Some(_rhs_id) = egg_sketches::util::comparing_eclass_extract_sketch(&sketch_clone, egg::AstSize, egg::AstSize, &runner.egraph, lhs_id){
             // panic!("same equivalence class".to_string());
             Result::Err("now in same equivalence class".to_string())
         } else {
             Result::Ok(())
         }
     };
-    let mut runner : Runner<L, N> = Runner::default()
+    let runner : Runner<L, N> = Runner::default()
       .with_node_limit(node_limit)
       .with_time_limit(time_limit)
       .with_iter_limit(iter_limit)
@@ -88,11 +88,11 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
     runner.print_report();
     let mut egraph = runner.egraph.without_explanation_length_optimization();
     //FIXME: we're computing this twice, once in the hook and once here.
-    let op_rhs = eclass_extract_sketch(&sketch.clone(), egg::AstSize, &egraph, lhs_id); 
+    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id); 
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
             & rhs_expr);
-        let flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
+        let _flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
         return Result::Ok((rhs_expr, ()))
     } else {
         return Result::Err("sketch not found".to_string())
@@ -106,7 +106,7 @@ pub fn sketch_guided_search( sketches: &[egg_sketches::Sketch<L>], start: &RecEx
         let mut cur : RecExpr<L> = start.clone();
         for sketch in sketches {
             let result = find_sketch(sketch, &cur, rewrites, iter_limit, node_limit, time_limit);
-            if let Ok((expr,S)) = result {
+            if let Ok((expr,_s)) = result {
                 cur = expr.clone();
                 res.push((expr,()));
             }

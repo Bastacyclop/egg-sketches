@@ -1,8 +1,8 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
-use egg_sketches::{eclass_extract_sketch, eclass_satisfies_sketch};
+use egg_sketches::eclass_satisfies_sketch;
 use egg_sketches::util::grow_egraph_until;
-//use egg_sketches::sketch_guided_search;
+//use egg_sketches::{sketch_guided_search, eclass_extract_sketch};
 
 define_language! {
     pub enum Lang {
@@ -84,6 +84,7 @@ impl Analysis<Lang> for ConstantFold {
     }
 }
 
+#[allow(dead_code)]
 fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let v = v.parse().unwrap();
     let w = w.parse().unwrap();
@@ -97,11 +98,13 @@ fn is_const_or_distinct_var(v: &str, w: &str) -> impl Fn(&mut EGraph, Id, &Subst
     }
 }
 
+#[allow(dead_code)]
 fn is_const(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| egraph[subst[var]].data.is_some()
 }
 
+#[allow(dead_code)]
 fn is_sym(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
     let var = var.parse().unwrap();
     move |egraph, _, subst| {
@@ -147,7 +150,7 @@ pub fn find_sketch(search_name: &str, sketch: &egg_sketches::Sketch<L>, start : 
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
             & rhs_expr);
-        let flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
+        let _flat_explanation : &FlatExplanation<L> = explanation.make_flat_explanation();
         return Result::Ok((rhs_expr, ()))
     } else {
         return Result::Err("sketch not found".to_string())
@@ -257,7 +260,7 @@ pub fn rules() -> Vec<Rewrite> { vec![
 ]}
 
 pub fn binomial4_sketches(sub_search: Option<usize>) {
-    let mut rules = rules();
+    let rules = rules();
 
     // 3 nested maps that we want to reorder:
     let start: Expr = "(pow (+ x y) 4)".parse().unwrap();
