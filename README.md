@@ -7,28 +7,29 @@ an e-graph library optimized for equality saturation.
 *Sketches* are program patterns that are satisfied by a family of programs.
 They can also be seen as incomplete or partial programs as they can leave details unspecified.
 
-This library is born from our paper on [*Sketch-Guided Equality Saturation*](https://arxiv.org/abs/2111.13040),
-a semi-automatic technique that allows programmers to provide program sketches to guide rewriting.
+This library is born from our paper on [*Guided Equality Saturation*](https://doi.org/10.1145/3632900),
+a semi-automatic technique that allows programmers to guide rewriting with, for example, program sketches.
 
 Please cite our paper if you use this repository for your research!
 
 <details class="bibtex">
     <summary>BibTeX</summary>
-    <code><pre>@article{2021-sketch-guided-eqsat,
-  author    = {Thomas Koehler and
-               Phil Trinder and
-               Michel Steuwer},
-  title     = {Sketch-Guided Equality Saturation: Scaling Equality Saturation to
-               Complex Optimizations in Languages with Bindings},
-  journal   = {CoRR},
-  volume    = {abs/2111.13040},
-  year      = {2021},
-  url       = {https://arxiv.org/abs/2111.13040},
-  eprinttype = {arXiv},
-  eprint    = {2111.13040},
-  timestamp = {Tue, 10 May 2022 15:24:30 +0200},
-  biburl    = {https://dblp.org/rec/journals/corr/abs-2111-13040.bib},
-  bibsource = {dblp computer science bibliography, https://dblp.org}
+    <code><pre>@article{2024-guided-eqsat,
+author = {Koehler, Thomas and Goens, Andr\'{e}s and Bhat, Siddharth and Grosser, Tobias and Trinder, Phil and Steuwer, Michel},
+title = {Guided Equality Saturation},
+year = {2024},
+issue_date = {January 2024},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {8},
+number = {POPL},
+url = {https://doi.org/10.1145/3632900},
+doi = {10.1145/3632900},
+journal = {Proc. ACM Program. Lang.},
+month = {jan},
+articleno = {58},
+numpages = {32},
+keywords = {theorem provers, e-graphs, equality saturation, optimizing compilers}
 }
 </pre></code>
 </details>
