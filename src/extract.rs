@@ -37,7 +37,8 @@ fn satisfies_sketch_rec<L: Language, A: Analysis<L>>(
     };
 
     let result = match &s_nodes[usize::from(s_index)] {
-        SketchNode::Any => egraph.classes().map(|c| c.id).collect(),
+        SketchNode::Any =>
+            egraph.classes().map(|c| c.id).collect(),
         SketchNode::Node(node) => {
             let children_matches = node
                 .children()
@@ -388,9 +389,9 @@ where
     }
 }
 
-pub struct ExtractAnalysis<'a, L, CF> {
-    exprs: &'a mut ExprHashCons<L>,
-    cost_f: &'a mut CF,
+pub(crate) struct ExtractAnalysis<'a, L, CF> {
+    pub(crate) exprs: &'a mut ExprHashCons<L>,
+    pub(crate) cost_f: &'a mut CF,
 }
 
 impl<'a, L, A, CF> SemiLatticeAnalysis<L, A> for ExtractAnalysis<'a, L, CF>
@@ -466,7 +467,7 @@ mod tests {
         assert!(sat2.contains(&egraph.find(b)));
         assert!(!sat2.contains(&c));
 
-        let (best_cost, best_expr) = eclass_extract_sketch(&sketch, AstSize, &egraph, a).unwrap();
+        let (best_cost, best_expr) = crate::util::comparing_eclass_extract_sketch(&sketch, AstSize, AstSize, &egraph, a).unwrap();
         assert_eq!(best_cost, 4);
         assert_eq!(best_expr, a_expr);
     }

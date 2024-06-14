@@ -1,5 +1,6 @@
 #!/bin/sh
-RESULTS=bench/results.csv
+RESULTS=bench/tiling/results.csv
+mkdir -p bench/tiling/
 
 cargo build --release --example bench_tiling || exit
 RUN=./target/release/examples/bench_tiling

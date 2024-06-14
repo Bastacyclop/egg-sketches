@@ -2,13 +2,11 @@ use std::env;
 
 use egg::{rewrite, CostFunction, Id, Language};
 use egg_sketches::*;
-
-use memory_stats::memory_stats;
+use util::grow_egraph_until;
 
 type Lang = egg::SymbolLang;
 type EGraph = egg::EGraph<Lang, ()>;
 type Rewrite = egg::Rewrite<Lang, ()>;
-type Runner = egg::Runner<Lang, ()>;
 type Expr = egg::RecExpr<Lang>;
 type Sketch = egg_sketches::Sketch<Lang>;
 
@@ -86,14 +84,14 @@ fn tile_2d(ts: TilingSearch) -> Vec<Expr> {
         ],
         // the corresponding full programs that we expect to find:
         &[
-            "(o (o (o j (m n1 (m 32 j))) (o (m n1 (m 32 (m n2 (m 32 f)))) (m n1 (m 32 (s 32))))) (s 32))",
+            "(o (o (o (m (* n1 32) j) j) (o (m n1 (m 32 (m n2 (m 32 f)))) (m n1 (m 32 (s 32))))) (s 32))",
         ],
         // sketches for the tiled map nests we are looking for:       
         &[
             "(contains (m n1 (m n2 (m 32 (m 32 f)))))",
         ],
         &[
-            "(o (o (o (o j (m n1 (m 32 j))) (m n1 T)) (o (m n1 (m n2 (m 32 (m 32 f)))) (m n1 T))) (o (m n1 (m 32 (s 32))) (s 32)))",
+            "(o (o (o (o (m (* n1 32) j) j) (m n1 T)) (o (m n1 (m n2 (m 32 (m 32 f)))) (m n1 T))) (o (m n1 (m 32 (s 32))) (s 32)))",
         ]
     )
 }
@@ -275,9 +273,8 @@ fn reach_sketches_from_exprs(
     let egraph = grow_egraph_until(search_name, egraph, rules, move |r| {
         let cano_eclass = r.egraph.find(eclass);
         sketches_hook.iter().all(|s| {
-            eclass_extract_sketch(s, egg::AstSize, &r.egraph, cano_eclass).is_some()
-            // FIXME:
-            // eclass_satisfies_sketch(s, &r.egraph, cano_eclass)
+            // eclass_extract_sketch(s, egg::AstSize, &r.egraph, cano_eclass).is_some()
+            eclass_satisfies_sketch(s, &r.egraph, cano_eclass)
         })
     });
     
@@ -288,81 +285,11 @@ fn reach_sketches_from_exprs(
         .collect()
 }
 
-fn grow_egraph_until<S>(
-    search_name: &str,
-    egraph: EGraph,
-    rules: &[Rewrite], 
-    mut satisfied: S
-) -> EGraph
-  where S: FnMut(&mut Runner) -> bool + 'static
-{
-    let search_name_hook = search_name.to_owned();
-    let runner = egg::Runner::default()
-        .with_scheduler(egg::SimpleScheduler)
-        .with_iter_limit(100)
-        .with_node_limit(100_000_000)
-        .with_time_limit(std::time::Duration::from_secs(5 * 60))
-        .with_hook(move |runner| {
-          let mut out_of_memory = false;
-          if let Some(it) = runner.iterations.last() {
-            out_of_memory = iteration_stats(&search_name_hook, it, runner.iterations.len() - 1);
-          }
-
-          if satisfied(runner) {
-            Err(String::from("Satisfied"))
-          } else if out_of_memory {
-            Err(String::from("Out of Memory"))
-          } else {
-            Ok(())
-          }
-        })
-        .with_egraph(egraph)
-        .run(&rules[..]);
-    iteration_stats(search_name, runner.iterations.last().unwrap(), runner.iterations.len() - 1);
-    runner.print_report();
-    runner.egraph
-}
-
-// search name,
-// iteration number,
-// physical memory,
-// virtual memory,
-// e-graph nodes,
-// e-graph classes,
-// applied rules,
-// total time,
-// hook time,
-// search time,
-// apply time,
-// rebuild time
-fn iteration_stats(search_name: &str, it: &egg::Iteration<()>, it_number: usize) -> bool {
-    let memory = memory_stats().expect("could not get current memory usage");
-    let out_of_memory = memory.virtual_mem > 8_000_000_000;
-    let found = match &it.stop_reason {
-        Some(egg::StopReason::Other(s)) => s == "Satisfied",
-        _ => false,
-    };
-    eprintln!("{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
-        search_name,
-        it_number,
-        memory.physical_mem,
-        memory.virtual_mem,
-        it.egraph_nodes,
-        it.egraph_classes,
-        it.applied.iter().map(|(_, &n)| n).sum::<usize>(),
-        it.total_time,
-        it.hook_time,
-        it.search_time,
-        it.apply_time,
-        it.rebuild_time,
-        found);
-    out_of_memory
-}
-
 fn sketch_extract_and_check(egraph: &EGraph, eclass: Id, sketch: &Sketch, goal: &Expr) -> Expr {
     let canonic_eclass = egraph.find(eclass);
 
-    let res = eclass_extract_sketch(sketch, egg::AstSize, &egraph, canonic_eclass);
+    // BEFORE: eclass_extract_sketch
+    let res = util::comparing_eclass_extract_sketch(sketch, egg::AstSize, egg::AstSize, &egraph, canonic_eclass);
     let (best_cost, best) = res.unwrap();
     let bs = string_of_expr(&best, true);
     let gs = string_of_expr(goal, true);

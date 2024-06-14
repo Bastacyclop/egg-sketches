@@ -29,20 +29,10 @@ from cycler import cycler
 import scipy.optimize as opt
 from functools import reduce
 from itertools import accumulate
+import sys
 
-plots = [
-  "tile_1d_s",
-  "tile_1d_r",
-  "tile_1d",
-  "tile_2d_s",
-  "tile_2d_r",
-  "tile_2d",
-  "tile_3d_s",
-  "tile_3d_r",
-  "tile_3d",
-]
-
-data = pd.read_csv('bench/results.csv', skipinitialspace=True)
+workdir = sys.argv[1]
+data = pd.read_csv(workdir + "/results.csv", skipinitialspace=True)
 data = data.astype({'iteration_number':'int', 'physical_memory':'int', 'virtual_memory':'int', 'e-nodes':'int', 'e-classes':'int', 'applied_rules':'int', 'total_time':'float', 'hook_time':'float', 'search_time':'float', 'apply_time':'float', 'rebuild_time':'float', 'found':'bool'})
 #print(data)
 
@@ -58,7 +48,6 @@ def plotOne(i, name):
     fig, ax = plt.subplots(tight_layout = {'pad': 0.3}, dpi=200)
     fig.set_figwidth(max(1 + (frame["iteration_number"].max() / 2), 2))
     fig.set_figheight(3)
-    # ax.set_title(plots[i][0].replace('-', ' '))
 
     
     #data['x'] = list(accumulate(zip(data.sketch, data.iteration),
@@ -69,14 +58,6 @@ def plotOne(i, name):
     print(frame)
     frame.plot('iteration_number', ["virtual_memory"], ax=ax)
     # "physical_memory", "e-nodes", "e-classes", "applied_rules", "total_time"
-
-    maxColor='red'
-    maxY = 8e9
-    print("max Y: ", maxY)
-    # plot max size
-    ax.axhline(y=maxY, color=maxColor, linestyle='--')
-    prefixValue = lambda v: str(int(v / 1e9)) + "Gb"
-    ax.text(1, 10e9, prefixValue(maxY), color=maxColor, ha='right', va='bottom')
     found_in_frame = frame.loc[frame['found'] == True]
     #for _, found_row in found_in_frame.iterrows():
     #    ax.text(found_row['iteration_number'], found_row['virtual_memory'], "✔", color="green", ha='right', va='bottom')
@@ -103,6 +84,14 @@ def plotOne(i, name):
         it_symbol = "✘"
         last_iteration += 1
 
+    # plot max size
+    maxColor='red'
+    maxY = 8e9
+    print("max Y: ", maxY)
+    ax.axhline(y=maxY, color=maxColor, linestyle='--')
+    prefixValue = lambda v: str(int(v / 1e9)) + "Gb"
+    ax.text(1, 10e9, prefixValue(maxY), color=maxColor, ha='left', va='bottom')
+
     #ax.set_xlim((0, 22))
     ax.set_xlabel("iterations")
     # ax.set_xlim(data["iteration_number"].min(), data["iteration_number"].max() + 1)
@@ -116,7 +105,7 @@ def plotOne(i, name):
         else:
             return str(int(n))
     ax.xaxis.set_major_formatter(FuncFormatter(xformat))
-    plt.xticks(range(last_iteration + 1))
+    plt.xticks(range(1, last_iteration + 1))
     if not_found:
         plt.gca().get_xticklabels()[-1].set_color('red')
     else:
@@ -129,8 +118,8 @@ def plotOne(i, name):
         patches.append(mpl.lines.Line2D([0], [0], color="black", linestyle=":"))
         ax.legend(patches, ["memory", "estimate"])
 
-    plt.savefig('bench/' + name + '.pgf')
-    plt.savefig('bench/' + name + '.png')
+    plt.savefig(workdir + '/' + name + '.pgf')
+    plt.savefig(workdir + '/' + name + '.png')
     print("----")
 
 for i, name in enumerate(data['search_name'].unique()):

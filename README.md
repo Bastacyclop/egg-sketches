@@ -38,5 +38,6 @@ keywords = {theorem provers, e-graphs, equality saturation, optimizing compilers
 
 ```sh
 ./bench/tiling.sh
+./bench/math.sh
 ./bench/plot.sh
 ```
