@@ -33,3 +33,10 @@ keywords = {theorem provers, e-graphs, equality saturation, optimizing compilers
 }
 </pre></code>
 </details>
+
+## Running benchmarks
+
+```sh
+./bench/tiling.sh
+./bench/plot.sh
+```
