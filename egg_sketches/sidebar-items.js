@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SketchNode"],"fn":["eclass_extract_sketch","eclass_satisfies_sketch","satisfies_sketch"],"mod":["util"],"type":["Sketch"]};
+window.SIDEBAR_ITEMS = {"enum":["SketchNode"],"fn":["eclass_extract_sketch","eclass_satisfies_sketch","satisfies_sketch"],"mod":["recursive_extract","util"],"type":["Sketch"]};

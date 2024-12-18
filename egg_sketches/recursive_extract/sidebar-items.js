@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["eclass_extract_sketch"]};
