@@ -59,6 +59,7 @@ where
   CF: CostFunction<L>,
   CF::Cost: 'static + Ord,
 {
+  assert_eq!(egraph.find(id), id);
   match memo.get(&(id, s_index)) {
     Some(value) => return value.clone(),
     None => (),

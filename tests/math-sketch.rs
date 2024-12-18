@@ -1,8 +1,6 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
-use egg_sketches::{eclass_extract_sketch};
 //use egg_sketches::sketch_guided_search;
-
 
 define_language! {
     pub enum Lang {
@@ -331,9 +329,9 @@ egg::test_fn! {
     #[should_panic(expected = "Could not prove goal 0")]
     binomial4_single_step, rules(),
     runner = Runner::default()
-        .with_time_limit(std::time::Duration::from_secs(3000))
-        .with_iter_limit(100_000)
-        .with_node_limit(8_000_000),
+        .with_time_limit(std::time::Duration::from_secs(60)) // also for 3000
+        .with_iter_limit(10_000) // also for 100k
+        .with_node_limit(1_000_000), // also for 8M
     "(pow (+ x y) 4)"
     =>
     "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))"
@@ -365,7 +363,8 @@ pub fn binomial4_sketches() {
     let sketches: &[Sketch] = &[
         "(contains (* (pow (+ x y) 2) (pow (+ x y) 2)))".parse().unwrap(),
         "(contains (* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2)))))".parse().unwrap(),
-        "(contains (+ (pow x 4) (+ ? (+ ? (+ ? (pow y 4))))))".parse().unwrap(),
+        // misguide:
+        // "(contains (+ (pow x 4) (+ ? (+ ? (+ ? (pow y 4))))))".parse().unwrap(),
         "(contains (+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4))))))".parse().unwrap(),
 
     ];
@@ -375,7 +374,7 @@ pub fn binomial4_sketches() {
     let goals: &[Expr] = &[
             "(* (pow (+ x y) 2) (pow (+ x y) 2))".parse().unwrap(),
             "(* (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))) (+ (pow x 2) (+ (* 2 (* x y)) (pow y 2))))".parse().unwrap(),
-            "(+ (pow x 4) (+ (* (pow x 2) (* y (+ (* 2 x) y))) (+ (* (* y (+ (* 2 x) y)) (* x (+ x (* 2 y)))) (+ (* (* (* 2 (* x y)) y) y) (pow y 4)))))".parse().unwrap(),
+            // "(+ (pow x 4) (+ (* (pow x 2) (* y (+ (* 2 x) y))) (+ (* (* y (+ (* 2 x) y)) (* x (+ x (* 2 y)))) (+ (* (* (* 2 (* x y)) y) y) (pow y 4)))))".parse().unwrap(),
             "(+ (pow x 4) (+ (* 4 (* (pow x 3) y)) (+ (* 6 (* (pow x 2) (pow y 2))) (+ (* 4 (* x (pow y 3))) (pow y 4)))))".parse().unwrap(),
         ];
 

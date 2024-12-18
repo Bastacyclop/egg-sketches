@@ -135,6 +135,7 @@ where
     CF: CostFunction<L>,
     CF::Cost: 'static + Ord,
 {
+    assert_eq!(egraph.find(id), id);
     let (exprs, eclass_to_best) = extract_sketch(s, cost_f, egraph);
     eclass_to_best
         .get(&id)
