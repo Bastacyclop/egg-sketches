@@ -43,7 +43,10 @@
 <a href="#42" id="42">42</a>
 <a href="#43" id="43">43</a>
 <a href="#44" id="44">44</a>
-<a href="#45" id="45">45</a></pre></div><pre class="rust"><code><span class="attr">#![warn(missing_docs)]
+<a href="#45" id="45">45</a>
+<a href="#46" id="46">46</a>
+<a href="#47" id="47">47</a>
+<a href="#48" id="48">48</a></pre></div><pre class="rust"><code><span class="attr">#![warn(missing_docs)]
 </span><span class="doccomment">/*!
 
 `egg-sketches` is a library adding support for program sketches on top of the `egg` (**e**-**g**raphs **g**ood) library,
@@ -66,11 +69,14 @@ To see examples of how to use this sketch libary, you can look at the [tests](ht
 <span class="kw">mod </span>analysis;
 <span class="kw">mod </span>extract;
 <span class="doccomment">/// Alternative recursive descent implementation of sketch extraction inspired from pattern matching. This is instead of the bottom-up e-class analysis approach.
+///
+/// FIXME: recursive descent gives wrong results since update to egg main!
 </span><span class="kw">pub mod </span>recursive_extract;
 <span class="kw">mod </span>hashcons;
 <span class="kw">mod </span>sketch;
 
 <span class="attr">#[cfg(feature = <span class="string">"util"</span>)]
+</span><span class="doccomment">/// Utility functions for integration tests and examples
 </span><span class="kw">pub mod </span>util;
 
 <span class="kw">pub use </span>{

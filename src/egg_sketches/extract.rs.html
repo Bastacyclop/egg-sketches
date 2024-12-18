@@ -468,7 +468,8 @@
 <a href="#467" id="467">467</a>
 <a href="#468" id="468">468</a>
 <a href="#469" id="469">469</a>
-<a href="#470" id="470">470</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span>analysis::{one_shot_analysis, SemiLatticeAnalysis};
 <span class="kw">use </span>hashcons::ExprHashCons;
 <span class="kw">use </span>sketch::SketchNode;
@@ -605,6 +606,7 @@
     CF: CostFunction&lt;L&gt;,
     CF::Cost: <span class="lifetime">'static </span>+ Ord,
 {
+    <span class="macro">assert_eq!</span>(egraph.find(id), id);
     <span class="kw">let </span>(exprs, eclass_to_best) = extract_sketch(s, cost_f, egraph);
     eclass_to_best
         .get(<span class="kw-2">&amp;</span>id)

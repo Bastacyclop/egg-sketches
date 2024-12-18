@@ -150,7 +150,8 @@
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span>hashcons::ExprHashCons;
 <span class="kw">use </span>sketch::SketchNode;
 <span class="kw">use </span>extract::ExtractAnalysis;
@@ -211,6 +212,7 @@
   CF: CostFunction&lt;L&gt;,
   CF::Cost: <span class="lifetime">'static </span>+ Ord,
 {
+  <span class="macro">assert_eq!</span>(egraph.find(id), id);
   <span class="kw">match </span>memo.get(<span class="kw-2">&amp;</span>(id, s_index)) {
     <span class="prelude-val">Some</span>(value) =&gt; <span class="kw">return </span>value.clone(),
     <span class="prelude-val">None </span>=&gt; (),
