@@ -46,15 +46,13 @@ fn satisfies_sketch_rec<L: Language, A: Analysis<L>>(
                 .map(|sid| satisfies_sketch_rec(s_nodes, *sid, egraph, memo))
                 .collect::<Vec<_>>();
 
-            if let Some(potential_ids) = egraph.classes_matching_op(node) {
+            if let Some(potential_ids) = egraph.classes_for_op(&node.discriminant()) {
                 potential_ids
-                    .iter()
-                    .cloned()
                     .filter(|&id| {
                         let eclass = &egraph[id];
 
                         let mnode = &node.clone().map_children(|_| Id::from(0));
-                        egg::for_each_matching_node(eclass, mnode, |matched| {
+                        eclass.for_each_matching_node(mnode, |matched| {
                             let children_match = children_matches
                                 .iter()
                                 .zip(matched.children())
@@ -210,16 +208,14 @@ where
                 })
                 .collect::<Vec<_>>();
 
-            if let Some(potential_ids) = egraph.classes_matching_op(node) {
+            if let Some(potential_ids) = egraph.classes_for_op(&node.discriminant()) {
                 potential_ids
-                    .iter()
-                    .cloned()
                     .flat_map(|id| {
                         let eclass = &egraph[id];
                         let mut candidates = Vec::new();
 
                         let mnode = &node.clone().map_children(|_| Id::from(0));
-                        let _ = egg::for_each_matching_node(eclass, mnode, |matched| {
+                        let _ = eclass.for_each_matching_node::<()>(mnode, |matched| {
                             let mut matches = Vec::new();
                             for (cm, id) in children_matches.iter().zip(matched.children()) {
                                 if let Some(m) = cm.get(id) {

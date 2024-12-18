@@ -29,7 +29,27 @@ pub enum SketchNode<L> {
     Or(Vec<Id>),
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum SketchDiscriminant<L: Language> {
+    Any,
+    Node(L::Discriminant),
+    Contains,
+    Or,
+}
+
 impl<L: Language> Language for SketchNode<L> {
+    type Discriminant = SketchDiscriminant<L>;
+
+    #[inline(always)]
+    fn discriminant(&self) -> Self::Discriminant {
+        match self {
+            SketchNode::Any => SketchDiscriminant::Any,
+            SketchNode::Node(n) => SketchDiscriminant::Node(n.discriminant()),
+            SketchNode::Contains(_) => SketchDiscriminant::Contains,
+            SketchNode::Or(_) => SketchDiscriminant::Or
+        }
+    }
+
     fn matches(&self, _other: &Self) -> bool {
         panic!("Should never call this")
     }

@@ -30,7 +30,7 @@ pub struct ConstantFold;
 impl Analysis<Lang> for ConstantFold {
     type Data = Option<(Constant, PatternAst<Lang>)>;
 
-    fn make(egraph: &EGraph, enode: &Lang) -> Self::Data {
+    fn make(egraph: &mut EGraph, enode: &Lang) -> Self::Data {
         let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
         Some(match enode {
             Lang::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
@@ -129,7 +129,7 @@ fn is_not_zero(var: &str) -> impl Fn(&mut EGraph, Id, &Subst) -> bool {
 pub type N = ConstantFold;
 pub type L = Lang;
 // insprired on https://github.com/opencompl/egg-tactic-code/blob/8b4aa748047a43213fc2c0dfca6b7af4a475f785/json-egg/src/main.rs#L368
-pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>, 
+pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
     rewrites : &[Rewrite], iter_limit: usize, node_limit: usize,
     time_limit: std::time::Duration,) -> Result< (RecExpr<L>,() ), String> { // FIXME: return explanation
     let mut graph : egg::EGraph<L,N> = EGraph::default().with_explanations_enabled();
@@ -154,7 +154,7 @@ pub fn find_sketch(sketch: &egg_sketches::Sketch<L>, start : &RecExpr<L>,
       .run(rewrites);
     let mut egraph = runner.egraph.without_explanation_length_optimization();
     //FIXME: we're computing this twice, once in the hook and once here.
-    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id); 
+    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id);
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
             & rhs_expr);

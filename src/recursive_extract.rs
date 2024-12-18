@@ -3,6 +3,7 @@ use hashcons::ExprHashCons;
 use sketch::SketchNode;
 use extract::ExtractAnalysis;
 
+/// Returns the best program satisfying `s` according to `cost_f` that is represented in the `id` e-class of `egraph`, if it exists.
 pub fn eclass_extract_sketch<L, A, CF>(
   s: &Sketch<L>,
   mut cost_f: CF,
@@ -57,12 +58,12 @@ where
   A: Analysis<L>,
   CF: CostFunction<L>,
   CF::Cost: 'static + Ord,
-{    
+{
   match memo.get(&(id, s_index)) {
     Some(value) => return value.clone(),
     None => (),
   };
-  
+
   let result = match &s_nodes[usize::from(s_index)] {
     SketchNode::Any => extracted.get(&id).cloned(),
     SketchNode::Node(node) => {
@@ -70,7 +71,7 @@ where
       let mut candidates = Vec::new();
 
       let mnode = &node.clone().map_children(|_| Id::from(0));
-      let _ = egg::for_each_matching_node(eclass, mnode, |matched| {
+      let _ = eclass.for_each_matching_node::<()>(mnode, |matched| {
         let mut matches = Vec::new();
         for (sid, id) in node.children().iter().zip(matched.children()) {
           if let Some(m) = extract_rec(*id, s_nodes, *sid, cost_f, egraph, exprs, extracted, memo) {

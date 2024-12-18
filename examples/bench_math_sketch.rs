@@ -30,7 +30,7 @@ pub struct ConstantFold;
 impl Analysis<Lang> for ConstantFold {
     type Data = Option<(Constant, PatternAst<Lang>)>;
 
-    fn make(egraph: &EGraph, enode: &Lang) -> Self::Data {
+    fn make(egraph: &mut EGraph, enode: &Lang) -> Self::Data {
         let x = |i: &Id| egraph[*i].data.as_ref().map(|d| d.0);
         Some(match enode {
             Lang::Constant(c) => (*c, format!("{}", c).parse().unwrap()),
@@ -146,7 +146,7 @@ pub fn find_sketch(search_name: &str, sketch: &egg_sketches::Sketch<L>, start : 
     });
     let mut egraph = egraph.without_explanation_length_optimization();
     // BEFORE: eclass_extract_sketch
-    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id); 
+    let op_rhs = egg_sketches::util::comparing_eclass_extract_sketch(&sketch.clone(), egg::AstSize, egg::AstSize, &egraph, lhs_id);
     if let Some( (_ ,rhs_expr)) = op_rhs {
         let mut explanation : Explanation<L> = egraph.explain_equivalence(&start,
             & rhs_expr);
@@ -164,7 +164,7 @@ pub fn sketch_guided_search(
     sketches: &[egg_sketches::Sketch<L>],
     expected: &[RecExpr<L>],
     rewrites : &[Rewrite]
-) {  
+) {
     let (search_name, sketch, expected, cur) = match sub_search {
         None => (format!("{}_unguided", name), sketches.last().unwrap(), expected.last().unwrap(), start),
         Some(i) => {
@@ -172,7 +172,7 @@ pub fn sketch_guided_search(
             (format!("{}_{}", name, i), &sketches[i], &expected[i], cur)
         }
     };
-    
+
     // TODO: check expected result?
     let (result, _) = find_sketch(&search_name, sketch, cur, rewrites)
         .expect("find sketch failed");

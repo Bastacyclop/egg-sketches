@@ -20,10 +20,13 @@ pub(crate) use egg::*;
 
 mod analysis;
 mod extract;
-mod recursive_extract;
+/// Alternative recursive descent implementation of sketch extraction inspired from pattern matching. This is instead of the bottom-up e-class analysis approach.
+pub mod recursive_extract;
 mod hashcons;
 mod sketch;
-pub mod util; // TODO: dev dependency
+
+#[cfg(feature = "util")]
+pub mod util;
 
 pub use {
     extract::eclass_extract_sketch,

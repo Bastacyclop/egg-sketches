@@ -3,7 +3,7 @@ all: test nits
 
 .PHONY: test
 test:
-	cargo test --release
+	cargo test --features util --release
 
 .PHONY: nits
 nits:
