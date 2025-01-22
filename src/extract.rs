@@ -379,9 +379,11 @@ where
     extracted: &'a HashMap<Id, (CF::Cost, Id)>,
 }
 
-fn merge_best_option(
-    a: &mut Option<(CF::Cost, Id)>,
-    b: Option<(CF::Cost, Id)>) -> DidMerge
+fn merge_best_option<Cost>(
+    a: &mut Option<(Cost, Id)>,
+    b: Option<(Cost, Id)>) -> DidMerge
+where
+    Cost: 'static + Ord,
 {
     let ord = match (&a, &b) {
         (None, None) => Ordering::Equal,

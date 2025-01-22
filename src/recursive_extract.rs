@@ -70,6 +70,7 @@ where
     SketchNode::Node(sketch_node) => {
       let eclass = &egraph[egraph_id];
 
+      // TODO: factorize code in extract_common
       let mut candidates = Vec::new();
       let mnode = &sketch_node.clone().map_children(|_| Id::from(0));
       let _ = eclass.for_each_matching_node::<()>(mnode, |matched| {
