@@ -1,6 +1,5 @@
 use egg::{rewrite as rw, *};
 use ordered_float::NotNan;
-use egg_sketches::{eclass_extract_sketch};
 //use egg_sketches::sketch_guided_search;
 
 

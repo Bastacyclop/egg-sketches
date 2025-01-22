@@ -5,7 +5,7 @@ use extract::ExtractAnalysis;
 
 /// Returns the best program satisfying `s` according to `cost_f` that is represented in the `id` e-class of `egraph`, if it exists.
 pub fn eclass_extract_sketch<L, A, CF>(
-  s: &Sketch<L>,
+  sketch: &Sketch<L>,
   mut cost_f: CF,
   egraph: &EGraph<L, A>,
   id: Id,
@@ -18,8 +18,7 @@ where
 {
   assert!(egraph.clean);
   let mut memo = HashMap::<(Id, Id), Option<(CF::Cost, Id)>>::default();
-  let sketch_nodes = s.as_ref();
-  let sketch_root = Id::from(sketch_nodes.len() - 1);
+  let sketch_root = Id::from(sketch.as_ref().len() - 1);
   let mut exprs = ExprHashCons::new();
 
   let mut extracted = HashMap::default();
@@ -31,7 +30,7 @@ where
 
   let best_option = extract_rec(
     id,
-    sketch_nodes,
+    sketch,
     sketch_root,
     &mut cost_f,
     egraph,
@@ -44,9 +43,9 @@ where
 }
 
 fn extract_rec<L, A, CF>(
-  id: Id,
-  s_nodes: &[SketchNode<L>],
-  s_index: Id,
+  egraph_id: Id,
+  sketch: &Sketch<L>,
+  sketch_id: Id,
   cost_f: &mut CF,
   egraph: &EGraph<L, A>,
   exprs: &mut ExprHashCons<L>,
@@ -59,29 +58,31 @@ where
   CF: CostFunction<L>,
   CF::Cost: 'static + Ord,
 {
-  assert_eq!(egraph.find(id), id);
-  match memo.get(&(id, s_index)) {
+  assert_eq!(egraph.find(egraph_id), egraph_id);
+  match memo.get(&(egraph_id, sketch_id)) {
     Some(value) => return value.clone(),
     None => (),
   };
 
-  let result = match &s_nodes[usize::from(s_index)] {
-    SketchNode::Any => extracted.get(&id).cloned(),
-    SketchNode::Node(node) => {
-      let eclass = &egraph[id];
-      let mut candidates = Vec::new();
+  let result = match &sketch[sketch_id] {
+    SketchNode::Any =>
+      extracted.get(&egraph_id).cloned(),
+    SketchNode::Node(sketch_node) => {
+      let eclass = &egraph[egraph_id];
 
-      let mnode = &node.clone().map_children(|_| Id::from(0));
+      let mut candidates = Vec::new();
+      let mnode = &sketch_node.clone().map_children(|_| Id::from(0));
       let _ = eclass.for_each_matching_node::<()>(mnode, |matched| {
         let mut matches = Vec::new();
-        for (sid, id) in node.children().iter().zip(matched.children()) {
-          if let Some(m) = extract_rec(*id, s_nodes, *sid, cost_f, egraph, exprs, extracted, memo) {
+        for (sid, id) in sketch_node.children().iter().zip(matched.children()) {
+          if let Some(m) = extract_rec(*id, sketch, *sid, cost_f, egraph, exprs, extracted, memo) {
             matches.push(m);
           } else {
             break;
           }
         }
 
+        assert!(matched.all(|c| c == egraph.find(c)));
         if matches.len() == matched.len() {
           let to_match: HashMap<_, _> =
               matched.children().iter().zip(matches.iter()).collect();
@@ -96,58 +97,68 @@ where
 
       candidates.into_iter().min_by(|x, y| x.0.cmp(&y.0))
     }
-    SketchNode::Contains(sid) => {
-      memo.insert((id, s_index), None); // avoid cycles
+    SketchNode::Contains(inner_sketch_id) => {
+      // Avoid cycles.
+      // If we have visited the contains once, we do not need to
+      // visit it again as the cost in our setup only goes up.
+      memo.insert((egraph_id, sketch_id), None);
 
-      let eclass = &egraph[id];
+      let eclass = &egraph[egraph_id];
       let mut candidates = Vec::new();
-      candidates.extend(extract_rec(id, s_nodes, *sid, cost_f, egraph, exprs, extracted, memo));
+      // Base case: when this eclass satisfies inner sketch
+      candidates.extend(extract_rec(egraph_id, sketch, *inner_sketch_id, cost_f, egraph, exprs, extracted, memo));
 
+      // Recursive case: when children satisfy sketch
       for enode in &eclass.nodes {
-        let children_matching: Vec<_> = enode
-          .children()
-          .iter()
-          .flat_map(|&c| {
-            extract_rec(c, s_nodes, s_index, cost_f, egraph, exprs, extracted, memo).map(move |x| (c, x))
-          })
-          .collect();
-        let children_any: Vec<_> = enode
-          .children()
-          .iter()
-          .map(|&c| (c, extracted[&egraph.find(c)].clone()))
-          .collect();
-
-        for (matching_child, matching) in &children_matching {
-          let mut to_selected = HashMap::default();
-
-          for (child, any) in &children_any {
-            let selected = if child == matching_child {
-                matching
-            } else {
-                any
-            };
-            to_selected.insert(child, selected);
+        extract_common::push_extract_contains_candidates(&mut candidates,
+          exprs, cost_f, extracted, egraph, enode, |c, exprs, cost_f, extracted, egraph| {
+            extract_rec(c, sketch, sketch_id, cost_f, egraph, exprs, extracted, memo)
           }
-
-          candidates.push((
-            cost_f.cost(enode, |c| to_selected[&c].0.clone()),
-            exprs.add(enode.clone().map_children(|c| to_selected[&c].1)),
-          ));
-        }
+        )
       }
 
       candidates.into_iter().min_by(|x, y| x.0.cmp(&y.0))
     }
-    SketchNode::Or(sids) => {
-      sids
+    SketchNode::OnlyContains(inner_sketch_id) => {
+      // FIXME: duplicate code
+      // Avoid cycles.
+      // If we have visited the contains once, we do not need to
+      // visit it again as the cost in our setup only goes up.
+      memo.insert((egraph_id, sketch_id), None);
+
+      let eclass = &egraph[egraph_id];
+      let mut candidates = Vec::new();
+      // Base case: when this eclass satisfies inner sketch
+      candidates.extend(extract_rec(egraph_id, sketch, *inner_sketch_id, cost_f, egraph, exprs, extracted, memo));
+
+      // Recursive case: when children satisfy sketch
+      for enode in &eclass.nodes {
+        candidates.extend(extract_common::extract_only_contains_candidate(
+          exprs, cost_f, egraph, enode, |c, exprs, cost_f, egraph| {
+            extract_rec(c, sketch, sketch_id, cost_f, egraph, exprs, extracted, memo)
+          }
+        ))
+      }
+
+      candidates.into_iter().min_by(|x, y| x.0.cmp(&y.0))
+    }
+    SketchNode::Or(inner_sketch_ids) => {
+      inner_sketch_ids
         .iter()
         .flat_map(|sid| {
-            extract_rec(id, s_nodes, *sid, cost_f, egraph, exprs, extracted, memo)
+            extract_rec(egraph_id, sketch, *sid, cost_f, egraph, exprs, extracted, memo)
         })
         .min_by(|x, y| x.0.cmp(&y.0))
     }
   };
 
-  memo.insert((id, s_index), result.clone());
+  /* DEBUG
+  if let SketchNode::Contains(_) = &sketch[sketch_id] {
+    if let Some((cost, _)) = &result {
+      println!("result for {:?}, {:?}: {:?}", sketch_id, egraph_id, cost);
+    }
+  } */
+
+  memo.insert((egraph_id, sketch_id), result.clone());
   result
 }

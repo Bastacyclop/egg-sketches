@@ -1,5 +1,4 @@
 use egg::{rewrite, CostFunction, Id, Language};
-use egg_sketches::eclass_extract_sketch;
 
 type Lang = egg::SymbolLang;
 type EGraph = egg::EGraph<Lang, ()>;

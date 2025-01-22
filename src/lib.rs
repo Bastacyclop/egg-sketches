@@ -19,6 +19,7 @@ To see examples of how to use this sketch libary, you can look at the [tests](ht
 pub(crate) use egg::*;
 
 mod analysis;
+pub(crate) mod extract_common;
 mod extract;
 /// Alternative recursive descent implementation of sketch extraction inspired from pattern matching. This is instead of the bottom-up e-class analysis approach.
 ///

@@ -84,21 +84,24 @@ pub fn comparing_eclass_extract_sketch<L, A, CF>(
   id: Id,
 ) -> Option<(CF::Cost, RecExpr<L>)>
 where
-  L: Language,
+  L: Language + std::fmt::Display,
   A: Analysis<L>,
   CF: CostFunction<L>,
   CF::Cost: 'static + Ord,
 {
   use std::time::Instant;
   let t1 = Instant::now();
+  println!("extract");
   let res1 = eclass_extract_sketch(s, cost_f1, egraph, id);
   let t2 = Instant::now();
+  println!("recursive extract");
   let res2 = recursive_extract::eclass_extract_sketch(s, cost_f2, egraph, id);
   let t3 = Instant::now();
   assert_eq!(res1.is_some(), res2.is_some());
-  if let (Some((c1, _)), Some((c2, _))) = (&res1, &res2) {
-    // FIXME: assert_eq!(c1, c2);
-    // recursive descent gives wrong results since update to egg main!
+  if let (Some((c1, t1)), Some((c2, t2))) = (&res1, &res2) {
+    println!("{}", t1);
+    println!("{}", t2);
+    assert_eq!(c1, c2);
   };
   println!("e-class analysis extraction took: {:?}", t2.duration_since(t1));
   println!("recursive descent extraction took: {:?}", t3.duration_since(t2));
