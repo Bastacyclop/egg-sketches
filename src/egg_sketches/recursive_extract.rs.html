@@ -151,14 +151,26 @@
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span>hashcons::ExprHashCons;
 <span class="kw">use </span>sketch::SketchNode;
 <span class="kw">use </span>extract::ExtractAnalysis;
 
 <span class="doccomment">/// Returns the best program satisfying `s` according to `cost_f` that is represented in the `id` e-class of `egraph`, if it exists.
 </span><span class="kw">pub fn </span>eclass_extract_sketch&lt;L, A, CF&gt;(
-  s: <span class="kw-2">&amp;</span>Sketch&lt;L&gt;,
+  sketch: <span class="kw-2">&amp;</span>Sketch&lt;L&gt;,
   <span class="kw-2">mut </span>cost_f: CF,
   egraph: <span class="kw-2">&amp;</span>EGraph&lt;L, A&gt;,
   id: Id,
@@ -171,8 +183,7 @@
 {
   <span class="macro">assert!</span>(egraph.clean);
   <span class="kw">let </span><span class="kw-2">mut </span>memo = HashMap::&lt;(Id, Id), <span class="prelude-ty">Option</span>&lt;(CF::Cost, Id)&gt;&gt;::default();
-  <span class="kw">let </span>sketch_nodes = s.as_ref();
-  <span class="kw">let </span>sketch_root = Id::from(sketch_nodes.len() - <span class="number">1</span>);
+  <span class="kw">let </span>sketch_root = Id::from(sketch.as_ref().len() - <span class="number">1</span>);
   <span class="kw">let </span><span class="kw-2">mut </span>exprs = ExprHashCons::new();
 
   <span class="kw">let </span><span class="kw-2">mut </span>extracted = HashMap::default();
@@ -184,7 +195,7 @@
 
   <span class="kw">let </span>best_option = extract_rec(
     id,
-    sketch_nodes,
+    sketch,
     sketch_root,
     <span class="kw-2">&amp;mut </span>cost_f,
     egraph,
@@ -197,9 +208,9 @@
 }
 
 <span class="kw">fn </span>extract_rec&lt;L, A, CF&gt;(
-  id: Id,
-  s_nodes: <span class="kw-2">&amp;</span>[SketchNode&lt;L&gt;],
-  s_index: Id,
+  egraph_id: Id,
+  sketch: <span class="kw-2">&amp;</span>Sketch&lt;L&gt;,
+  sketch_id: Id,
   cost_f: <span class="kw-2">&amp;mut </span>CF,
   egraph: <span class="kw-2">&amp;</span>EGraph&lt;L, A&gt;,
   exprs: <span class="kw-2">&amp;mut </span>ExprHashCons&lt;L&gt;,
@@ -212,29 +223,32 @@
   CF: CostFunction&lt;L&gt;,
   CF::Cost: <span class="lifetime">'static </span>+ Ord,
 {
-  <span class="macro">assert_eq!</span>(egraph.find(id), id);
-  <span class="kw">match </span>memo.get(<span class="kw-2">&amp;</span>(id, s_index)) {
+  <span class="macro">assert_eq!</span>(egraph.find(egraph_id), egraph_id);
+  <span class="kw">match </span>memo.get(<span class="kw-2">&amp;</span>(egraph_id, sketch_id)) {
     <span class="prelude-val">Some</span>(value) =&gt; <span class="kw">return </span>value.clone(),
     <span class="prelude-val">None </span>=&gt; (),
   };
 
-  <span class="kw">let </span>result = <span class="kw">match </span><span class="kw-2">&amp;</span>s_nodes[usize::from(s_index)] {
-    SketchNode::Any =&gt; extracted.get(<span class="kw-2">&amp;</span>id).cloned(),
-    SketchNode::Node(node) =&gt; {
-      <span class="kw">let </span>eclass = <span class="kw-2">&amp;</span>egraph[id];
-      <span class="kw">let </span><span class="kw-2">mut </span>candidates = Vec::new();
+  <span class="kw">let </span>result = <span class="kw">match </span><span class="kw-2">&amp;</span>sketch[sketch_id] {
+    SketchNode::Any =&gt;
+      extracted.get(<span class="kw-2">&amp;</span>egraph_id).cloned(),
+    SketchNode::Node(sketch_node) =&gt; {
+      <span class="kw">let </span>eclass = <span class="kw-2">&amp;</span>egraph[egraph_id];
 
-      <span class="kw">let </span>mnode = <span class="kw-2">&amp;</span>node.clone().map_children(|<span class="kw">_</span>| Id::from(<span class="number">0</span>));
+      <span class="comment">// TODO: factorize code in extract_common
+      </span><span class="kw">let </span><span class="kw-2">mut </span>candidates = Vec::new();
+      <span class="kw">let </span>mnode = <span class="kw-2">&amp;</span>sketch_node.clone().map_children(|<span class="kw">_</span>| Id::from(<span class="number">0</span>));
       <span class="kw">let _ </span>= eclass.for_each_matching_node::&lt;()&gt;(mnode, |matched| {
         <span class="kw">let </span><span class="kw-2">mut </span>matches = Vec::new();
-        <span class="kw">for </span>(sid, id) <span class="kw">in </span>node.children().iter().zip(matched.children()) {
-          <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = extract_rec(<span class="kw-2">*</span>id, s_nodes, <span class="kw-2">*</span>sid, cost_f, egraph, exprs, extracted, memo) {
+        <span class="kw">for </span>(sid, id) <span class="kw">in </span>sketch_node.children().iter().zip(matched.children()) {
+          <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = extract_rec(<span class="kw-2">*</span>id, sketch, <span class="kw-2">*</span>sid, cost_f, egraph, exprs, extracted, memo) {
             matches.push(m);
           } <span class="kw">else </span>{
             <span class="kw">break</span>;
           }
         }
 
+        <span class="macro">assert!</span>(matched.all(|c| c == egraph.find(c)));
         <span class="kw">if </span>matches.len() == matched.len() {
           <span class="kw">let </span>to_match: HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt; =
               matched.children().iter().zip(matches.iter()).collect();
@@ -249,58 +263,68 @@
 
       candidates.into_iter().min_by(|x, y| x.<span class="number">0</span>.cmp(<span class="kw-2">&amp;</span>y.<span class="number">0</span>))
     }
-    SketchNode::Contains(sid) =&gt; {
-      memo.insert((id, s_index), <span class="prelude-val">None</span>); <span class="comment">// avoid cycles
+    SketchNode::Contains(inner_sketch_id) =&gt; {
+      <span class="comment">// Avoid cycles.
+      // If we have visited the contains once, we do not need to
+      // visit it again as the cost in our setup only goes up.
+      </span>memo.insert((egraph_id, sketch_id), <span class="prelude-val">None</span>);
 
-      </span><span class="kw">let </span>eclass = <span class="kw-2">&amp;</span>egraph[id];
+      <span class="kw">let </span>eclass = <span class="kw-2">&amp;</span>egraph[egraph_id];
       <span class="kw">let </span><span class="kw-2">mut </span>candidates = Vec::new();
-      candidates.extend(extract_rec(id, s_nodes, <span class="kw-2">*</span>sid, cost_f, egraph, exprs, extracted, memo));
+      <span class="comment">// Base case: when this eclass satisfies inner sketch
+      </span>candidates.extend(extract_rec(egraph_id, sketch, <span class="kw-2">*</span>inner_sketch_id, cost_f, egraph, exprs, extracted, memo));
 
-      <span class="kw">for </span>enode <span class="kw">in </span><span class="kw-2">&amp;</span>eclass.nodes {
-        <span class="kw">let </span>children_matching: Vec&lt;<span class="kw">_</span>&gt; = enode
-          .children()
-          .iter()
-          .flat_map(|<span class="kw-2">&amp;</span>c| {
-            extract_rec(c, s_nodes, s_index, cost_f, egraph, exprs, extracted, memo).map(<span class="kw">move </span>|x| (c, x))
-          })
-          .collect();
-        <span class="kw">let </span>children_any: Vec&lt;<span class="kw">_</span>&gt; = enode
-          .children()
-          .iter()
-          .map(|<span class="kw-2">&amp;</span>c| (c, extracted[<span class="kw-2">&amp;</span>egraph.find(c)].clone()))
-          .collect();
-
-        <span class="kw">for </span>(matching_child, matching) <span class="kw">in </span><span class="kw-2">&amp;</span>children_matching {
-          <span class="kw">let </span><span class="kw-2">mut </span>to_selected = HashMap::default();
-
-          <span class="kw">for </span>(child, any) <span class="kw">in </span><span class="kw-2">&amp;</span>children_any {
-            <span class="kw">let </span>selected = <span class="kw">if </span>child == matching_child {
-                matching
-            } <span class="kw">else </span>{
-                any
-            };
-            to_selected.insert(child, selected);
+      <span class="comment">// Recursive case: when children satisfy sketch
+      </span><span class="kw">for </span>enode <span class="kw">in </span><span class="kw-2">&amp;</span>eclass.nodes {
+        extract_common::push_extract_contains_candidates(<span class="kw-2">&amp;mut </span>candidates,
+          exprs, cost_f, extracted, egraph, enode, |c, exprs, cost_f, extracted, egraph| {
+            extract_rec(c, sketch, sketch_id, cost_f, egraph, exprs, extracted, memo)
           }
-
-          candidates.push((
-            cost_f.cost(enode, |c| to_selected[<span class="kw-2">&amp;</span>c].<span class="number">0</span>.clone()),
-            exprs.add(enode.clone().map_children(|c| to_selected[<span class="kw-2">&amp;</span>c].<span class="number">1</span>)),
-          ));
-        }
+        )
       }
 
       candidates.into_iter().min_by(|x, y| x.<span class="number">0</span>.cmp(<span class="kw-2">&amp;</span>y.<span class="number">0</span>))
     }
-    SketchNode::Or(sids) =&gt; {
-      sids
+    SketchNode::OnlyContains(inner_sketch_id) =&gt; {
+      <span class="comment">// FIXME: duplicate code
+      // Avoid cycles.
+      // If we have visited the contains once, we do not need to
+      // visit it again as the cost in our setup only goes up.
+      </span>memo.insert((egraph_id, sketch_id), <span class="prelude-val">None</span>);
+
+      <span class="kw">let </span>eclass = <span class="kw-2">&amp;</span>egraph[egraph_id];
+      <span class="kw">let </span><span class="kw-2">mut </span>candidates = Vec::new();
+      <span class="comment">// Base case: when this eclass satisfies inner sketch
+      </span>candidates.extend(extract_rec(egraph_id, sketch, <span class="kw-2">*</span>inner_sketch_id, cost_f, egraph, exprs, extracted, memo));
+
+      <span class="comment">// Recursive case: when children satisfy sketch
+      </span><span class="kw">for </span>enode <span class="kw">in </span><span class="kw-2">&amp;</span>eclass.nodes {
+        candidates.extend(extract_common::extract_only_contains_candidate(
+          exprs, cost_f, egraph, enode, |c, exprs, cost_f, egraph| {
+            extract_rec(c, sketch, sketch_id, cost_f, egraph, exprs, extracted, memo)
+          }
+        ))
+      }
+
+      candidates.into_iter().min_by(|x, y| x.<span class="number">0</span>.cmp(<span class="kw-2">&amp;</span>y.<span class="number">0</span>))
+    }
+    SketchNode::Or(inner_sketch_ids) =&gt; {
+      inner_sketch_ids
         .iter()
         .flat_map(|sid| {
-            extract_rec(id, s_nodes, <span class="kw-2">*</span>sid, cost_f, egraph, exprs, extracted, memo)
+            extract_rec(egraph_id, sketch, <span class="kw-2">*</span>sid, cost_f, egraph, exprs, extracted, memo)
         })
         .min_by(|x, y| x.<span class="number">0</span>.cmp(<span class="kw-2">&amp;</span>y.<span class="number">0</span>))
     }
   };
 
-  memo.insert((id, s_index), result.clone());
+  <span class="comment">/* DEBUG
+  if let SketchNode::Contains(_) = &amp;sketch[sketch_id] {
+    if let Some((cost, _)) = &amp;result {
+      println!("result for {:?}, {:?}: {:?}", sketch_id, egraph_id, cost);
+    }
+  } */
+
+  </span>memo.insert((egraph_id, sketch_id), result.clone());
   result
 }</code></pre></div></section></main></body></html>
