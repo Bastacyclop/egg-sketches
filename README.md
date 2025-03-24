@@ -34,6 +34,12 @@ keywords = {theorem provers, e-graphs, equality saturation, optimizing compilers
 </pre></code>
 </details>
 
+## Running tests
+
+```sh
+make test
+```
+
 ## Running benchmarks
 
 ```sh
