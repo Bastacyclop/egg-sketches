@@ -19,7 +19,9 @@ impl<L: Language> ExprHashCons<L> {
         if let Some(id) = self.memo.get(&node) {
             *id
         } else {
-            self.rec_expr.add(node)
+            let new_id = self.rec_expr.add(node.clone());
+            self.memo.insert(node, new_id);
+            new_id
         }
     }
 

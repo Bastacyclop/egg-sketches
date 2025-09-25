@@ -85,11 +85,15 @@ where
 
         assert!(matched.all(|c| c == egraph.find(c)));
         if matches.len() == matched.len() {
+          let mut node_to_child_indices = sketch_node.clone();
+          for (child_index, id) in node_to_child_indices.children_mut().into_iter().enumerate() {
+              *id = Id::from(child_index);
+          }
           let to_match: HashMap<_, _> =
-              matched.children().iter().zip(matches.iter()).collect();
+              node_to_child_indices.children().iter().zip(matches.iter()).collect();
           candidates.push((
-              cost_f.cost(matched, |c| to_match[&c].0.clone()),
-              exprs.add(matched.clone().map_children(|c| to_match[&c].1)),
+              cost_f.cost(&node_to_child_indices, |c| to_match[&c].0.clone()),
+              exprs.add(node_to_child_indices.clone().map_children(|c| to_match[&c].1)),
           ));
         }
 

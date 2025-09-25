@@ -242,6 +242,7 @@ where
     let result = match &sketch[sketch_id] {
         SketchNode::Any => extracted.clone(),
         SketchNode::Node(sketch_node) => {
+            // for each child, contains map from eclass-id to best
             let children_matches = sketch_node
                 .children()
                 .iter()
@@ -258,7 +259,10 @@ where
 
                         let mnode = &sketch_node.clone().map_children(|_| Id::from(0));
                         let _ = eclass.for_each_matching_node::<()>(mnode, |matched| {
+                            // matched is a enode with children being e-classes
+
                             let mut matches = Vec::new();
+                            // for each child, matches lists the best
                             for (cm, id) in children_matches.iter().zip(matched.children()) {
                                 if let Some(m) = cm.get(id) {
                                     matches.push(m);
@@ -268,11 +272,18 @@ where
                             }
 
                             if matches.len() == matched.len() {
+                                // for each child, map to the best based on child index
+                                let mut node_to_child_indices = sketch_node.clone();
+                                for (child_index, id) in node_to_child_indices.children_mut().into_iter().enumerate() {
+                                    *id = Id::from(child_index);
+                                }
+                                
                                 let to_match: HashMap<_, _> =
-                                    matched.children().iter().zip(matches.iter()).collect();
+                                    node_to_child_indices.children().iter().zip(matches.iter()).collect();
+
                                 candidates.push((
-                                    cost_f.cost(matched, |c| to_match[&c].0.clone()),
-                                    exprs.add(matched.clone().map_children(|c| to_match[&c].1)),
+                                    cost_f.cost(&node_to_child_indices, |c| to_match[&c].0.clone()),
+                                    exprs.add(node_to_child_indices.clone().map_children(|c| to_match[&c].1)),
                                 ));
                             }
 
@@ -359,11 +370,11 @@ where
     };
 
     /* DEBUG
-    if let SketchNode::Contains(_) = &sketch[sketch_id] {
-        for (id, (cost, _)) in &result {
-            println!("result for {:?}, {:?}: {:?}", sketch_id, id, cost);
+        println!("result for sketch node {:?}", sketch_id);
+        for (id, (cost, expr_id)) in &result {
+            println!("- e-class {} result of cost {:?}: {}", id, cost, exprs.extract(*expr_id));
         }
-    } */
+    */
 
     memo.insert(sketch_id, result.clone());
     result
@@ -517,6 +528,42 @@ where
 mod tests {
     use super::*;
     use crate::*;
+
+    #[test]
+    fn bug202509() {
+        let expr_a =
+            "(>> (>> transpose transpose) (>> (>> transpose transpose) (>> transpose transpose)))"
+                .parse::<RecExpr<SymbolLang>>()
+                .unwrap();
+
+        let sketch =
+            "(>> (>> transpose transpose) (>> (>> transpose transpose) (>> transpose transpose)))"
+                .parse::<Sketch<SymbolLang>>()
+                .unwrap();
+
+        let mut egraph = EGraph::<_, ()>::default();
+        let a_root = egraph.add_expr(&expr_a);
+
+        egraph.rebuild();
+
+        let (_, best_expr) = crate::util::comparing_eclass_extract_sketch(&sketch, AstSize, AstSize, &egraph, a_root).unwrap();
+        assert_eq!(best_expr.to_string(), expr_a.to_string());
+
+        let rules = vec![
+            rewrite!("transpose-id-1";  "(>> (>> transpose transpose) ?x)" => "?x"),
+            rewrite!("transpose-id-2";  "(>> ?x (>> transpose transpose))" => "?x"),
+        ];
+
+        let runner = egg::Runner::default()
+            .with_scheduler(egg::SimpleScheduler)
+            .with_iter_limit(1)
+            .with_egraph(egraph)
+            .run(&rules);
+        let egraph = runner.egraph;
+        let (_, best_expr) =
+            crate::util::comparing_eclass_extract_sketch(&sketch, AstSize, AstSize, &egraph, egraph.find(a_root)).unwrap();
+        assert_eq!(best_expr.to_string(), expr_a.to_string());
+    }
 
     #[test]
     fn simple_extract() {
